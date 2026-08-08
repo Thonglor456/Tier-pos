@@ -12,6 +12,8 @@ import {
   orderItems,
   orders,
   posUsers,
+  salesChannels,
+  storeSettings,
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -119,11 +121,13 @@ export async function generateOrderNumber() {
 }
 
 export type CreateOrderInput = {
-  salesChannel: "walkin" | "grab";
-  paymentMethod: "cash" | "transfer";
+  salesChannel: string;
+  paymentMethod: "cash" | "transfer" | "thai_chuay_thai";
   totalAmount: number;
   cashReceived?: number;
   changeAmount?: number;
+  vatAmount?: number;
+  staffId?: number;
   items: Array<{
     itemId: number;
     variantId: number;
@@ -149,6 +153,8 @@ export async function createOrder(input: CreateOrderInput) {
     paymentMethod: input.paymentMethod,
     cashReceived: input.cashReceived != null ? String(input.cashReceived) : null,
     changeAmount: input.changeAmount != null ? String(input.changeAmount) : null,
+    vatAmount: input.vatAmount != null ? String(input.vatAmount) : "0",
+    staffId: input.staffId ?? null,
   });
   const [newOrder] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
   if (!newOrder) throw new Error("Failed to create order");
@@ -206,7 +212,7 @@ export async function getOrderWithItems(orderId: number) {
   return { ...order, items: oiWithMods };
 }
 
-export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: "walkin" | "grab"; status?: "completed" | "cancelled"; limit?: number; offset?: number }) {
+export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: string; status?: "completed" | "cancelled"; limit?: number; offset?: number }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
@@ -231,7 +237,26 @@ export async function getDailySummary(date: Date) {
   const grabRevenue = completed.filter((o) => o.salesChannel === "grab").reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0);
   const cashRevenue = completed.filter((o) => o.paymentMethod === "cash").reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0);
   const transferRevenue = completed.filter((o) => o.paymentMethod === "transfer").reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0);
-  return { totalRevenue, walkinRevenue, grabRevenue, cashRevenue, transferRevenue, completedCount: completed.length, cancelledCount: cancelled.length };
+  const thaiChuayThaiRevenue = completed.filter((o) => o.paymentMethod === "thai_chuay_thai").reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0);
+  // By channel (dynamic)
+  const channelBreakdown: Record<string, number> = {};
+  for (const o of completed) {
+    channelBreakdown[o.salesChannel] = (channelBreakdown[o.salesChannel] ?? 0) + parseFloat(String(o.totalAmount));
+  }
+  // By staff
+  const staffBreakdown: Record<number, { revenue: number; count: number }> = {};
+  for (const o of completed) {
+    if (o.staffId) {
+      if (!staffBreakdown[o.staffId]) staffBreakdown[o.staffId] = { revenue: 0, count: 0 };
+      staffBreakdown[o.staffId]!.revenue += parseFloat(String(o.totalAmount));
+      staffBreakdown[o.staffId]!.count += 1;
+    }
+  }
+  return {
+    totalRevenue, walkinRevenue, grabRevenue, cashRevenue, transferRevenue, thaiChuayThaiRevenue,
+    channelBreakdown, staffBreakdown,
+    completedCount: completed.length, cancelledCount: cancelled.length,
+  };
 }
 
 // ─── POS Users (PIN) ──────────────────────────────────────────────────────────
@@ -240,6 +265,19 @@ export async function verifyManagerPin(pin: string) {
   if (!db) return null;
   const result = await db.select().from(posUsers).where(and(eq(posUsers.pinCode, pin), eq(posUsers.role, "manager"), eq(posUsers.isActive, true))).limit(1);
   return result[0] ?? null;
+}
+
+export async function verifyStaffPin(staffId: number, pin: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(posUsers).where(and(eq(posUsers.id, staffId), eq(posUsers.pinCode, pin), eq(posUsers.isActive, true))).limit(1);
+  return result[0] ?? null;
+}
+
+export async function deletePosUser(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(posUsers).where(eq(posUsers.id, id));
 }
 
 export async function getPosUsers() {
@@ -274,7 +312,7 @@ export async function getAllItemsAdmin() {
 
 export async function upsertItem(data: {
   id?: number; categoryId: number; name: string; sku?: string; costPrice: number; hasVariants: boolean; isActive: boolean; sortOrder: number;
-  variants: Array<{ id?: number; name: string; priceWalkin: number; priceGrab: number }>;
+  variants: Array<{ id?: number; name: string; priceWalkin: number; priceGrab: number; priceLineman?: number }>;
   modifierGroupIds: number[];
 }) {
   const db = await getDb();
@@ -296,9 +334,9 @@ export async function upsertItem(data: {
   for (let i = 0; i < data.variants.length; i++) {
     const v = data.variants[i]!;
     if (v.id) {
-      await db.update(itemVariants).set({ name: v.name, priceWalkin: String(v.priceWalkin), priceGrab: String(v.priceGrab), sortOrder: i }).where(eq(itemVariants.id, v.id));
+      await db.update(itemVariants).set({ name: v.name, priceWalkin: String(v.priceWalkin), priceGrab: String(v.priceGrab), priceLineman: String(v.priceLineman ?? v.priceGrab), sortOrder: i }).where(eq(itemVariants.id, v.id));
     } else {
-      await db.insert(itemVariants).values({ itemId, name: v.name, priceWalkin: String(v.priceWalkin), priceGrab: String(v.priceGrab), sortOrder: i });
+      await db.insert(itemVariants).values({ itemId, name: v.name, priceWalkin: String(v.priceWalkin), priceGrab: String(v.priceGrab), priceLineman: String(v.priceLineman ?? v.priceGrab), sortOrder: i });
     }
   }
   // Sync modifier groups
@@ -331,3 +369,98 @@ export async function upsertCategory(data: { id?: number; name: string; sortOrde
   }
 }
 
+// ─── Store Settings ───────────────────────────────────────────────────────────
+export async function getStoreSettings() {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(storeSettings).limit(1);
+  return result[0] ?? null;
+}
+
+export async function updateStoreSettings(data: Partial<{
+  shopName: string; logoUrl: string | null; address: string; phone: string; taxId: string;
+  vatEnabled: boolean; vatRate: number; openTime: string; closeTime: string; promptpayQrUrl: string | null;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await db.select().from(storeSettings).limit(1);
+  if (existing.length === 0) {
+    await db.insert(storeSettings).values({ shopName: "Tier Coffee", vatEnabled: false, vatRate: "7.00" });
+  }
+  const setData: Record<string, unknown> = {};
+  if (data.shopName !== undefined) setData.shopName = data.shopName;
+  if (data.logoUrl !== undefined) setData.logoUrl = data.logoUrl;
+  if (data.address !== undefined) setData.address = data.address;
+  if (data.phone !== undefined) setData.phone = data.phone;
+  if (data.taxId !== undefined) setData.taxId = data.taxId;
+  if (data.vatEnabled !== undefined) setData.vatEnabled = data.vatEnabled;
+  if (data.vatRate !== undefined) setData.vatRate = String(data.vatRate);
+  if (data.openTime !== undefined) setData.openTime = data.openTime;
+  if (data.closeTime !== undefined) setData.closeTime = data.closeTime;
+  if (data.promptpayQrUrl !== undefined) setData.promptpayQrUrl = data.promptpayQrUrl;
+  await db.update(storeSettings).set(setData);
+}
+
+// ─── Sales Channels ───────────────────────────────────────────────────────────
+export async function getSalesChannels() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(salesChannels).where(eq(salesChannels.isActive, true)).orderBy(salesChannels.sortOrder);
+}
+
+export async function getAllSalesChannels() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(salesChannels).orderBy(salesChannels.sortOrder);
+}
+
+export async function upsertSalesChannel(data: { id?: number; name: string; slug: string; isActive: boolean; sortOrder: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.id) {
+    await db.update(salesChannels).set({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder }).where(eq(salesChannels.id, data.id));
+  } else {
+    await db.insert(salesChannels).values({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder });
+  }
+}
+
+export async function deleteSalesChannel(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(salesChannels).where(eq(salesChannels.id, id));
+}
+
+// ─── Modifier Groups Admin ────────────────────────────────────────────────────
+export async function upsertModifierGroup(data: { id?: number; name: string; isRequired: boolean; minSelect: number; maxSelect: number; sortOrder: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.id) {
+    await db.update(modifierGroups).set({ name: data.name, isRequired: data.isRequired, minSelect: data.minSelect, maxSelect: data.maxSelect, sortOrder: data.sortOrder }).where(eq(modifierGroups.id, data.id));
+  } else {
+    await db.insert(modifierGroups).values({ name: data.name, isRequired: data.isRequired, minSelect: data.minSelect, maxSelect: data.maxSelect, sortOrder: data.sortOrder });
+  }
+}
+
+export async function deleteModifierGroup(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(modifierOptions).where(eq(modifierOptions.modifierGroupId, id));
+  await db.delete(itemModifierGroups).where(eq(itemModifierGroups.modifierGroupId, id));
+  await db.delete(modifierGroups).where(eq(modifierGroups.id, id));
+}
+
+export async function upsertModifierOption(data: { id?: number; modifierGroupId: number; name: string; priceAdd: number; sortOrder: number; isActive: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.id) {
+    await db.update(modifierOptions).set({ name: data.name, priceAdd: String(data.priceAdd), sortOrder: data.sortOrder, isActive: data.isActive }).where(eq(modifierOptions.id, data.id));
+  } else {
+    await db.insert(modifierOptions).values({ modifierGroupId: data.modifierGroupId, name: data.name, priceAdd: String(data.priceAdd), sortOrder: data.sortOrder, isActive: data.isActive });
+  }
+}
+
+export async function deleteModifierOption(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(modifierOptions).where(eq(modifierOptions.id, id));
+}

@@ -3,8 +3,13 @@ import { z } from "zod";
 import {
   cancelOrder,
   createOrder,
+  deletePosUser,
+  deleteSalesChannel,
+  deleteModifierGroup,
+  deleteModifierOption,
   getAllCategoriesAdmin,
   getAllItemsAdmin,
+  getAllSalesChannels,
   getCategories,
   getDailySummary,
   getItemsWithVariantsAndModifiers,
@@ -12,11 +17,18 @@ import {
   getOrderWithItems,
   getOrders,
   getPosUsers,
+  getSalesChannels,
+  getStoreSettings,
   toggleItemActive,
+  updateStoreSettings,
   upsertCategory,
   upsertItem,
+  upsertModifierGroup,
+  upsertModifierOption,
   upsertPosUser,
+  upsertSalesChannel,
   verifyManagerPin,
+  verifyStaffPin,
 } from "./db";
 import { getSessionCookieOptions as _getCookieOpts } from "./_core/cookies";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -46,11 +58,13 @@ export const appRouter = router({
   orders: router({
     create: publicProcedure
       .input(z.object({
-        salesChannel: z.enum(["walkin", "grab"]),
-        paymentMethod: z.enum(["cash", "transfer"]),
+        salesChannel: z.string(),
+        paymentMethod: z.enum(["cash", "transfer", "thai_chuay_thai"]),
         totalAmount: z.number(),
         cashReceived: z.number().optional(),
         changeAmount: z.number().optional(),
+        vatAmount: z.number().optional(),
+        staffId: z.number().optional(),
         items: z.array(z.object({
           itemId: z.number(),
           variantId: z.number(),
@@ -87,8 +101,9 @@ export const appRouter = router({
       .input(z.object({
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        channel: z.enum(["walkin", "grab"]).optional(),
+        channel: z.string().optional(),
         status: z.enum(["completed", "cancelled"]).optional(),
+        staffId: z.number().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
       }).optional())
@@ -112,9 +127,15 @@ export const appRouter = router({
     upsert: publicProcedure
       .input(z.object({ id: z.number().optional(), name: z.string(), pinCode: z.string().min(4).max(6), role: z.enum(["staff", "manager"]) }))
       .mutation(({ input }) => upsertPosUser(input)),
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deletePosUser(input.id)),
     verifyPin: publicProcedure
       .input(z.object({ pin: z.string() }))
       .mutation(({ input }) => verifyManagerPin(input.pin)),
+    verifyStaffPin: publicProcedure
+      .input(z.object({ staffId: z.number(), pin: z.string() }))
+      .mutation(({ input }) => verifyStaffPin(input.staffId, input.pin)),
   }),
 
   // ─── Admin ───────────────────────────────────────────────────────────────────
@@ -131,7 +152,7 @@ export const appRouter = router({
         hasVariants: z.boolean(),
         isActive: z.boolean(),
         sortOrder: z.number(),
-        variants: z.array(z.object({ id: z.number().optional(), name: z.string(), priceWalkin: z.number(), priceGrab: z.number() })),
+        variants: z.array(z.object({ id: z.number().optional(), name: z.string(), priceWalkin: z.number(), priceGrab: z.number(), priceLineman: z.number().optional() })),
         modifierGroupIds: z.array(z.number()),
       }))
       .mutation(({ input }) => upsertItem(input)),
@@ -142,6 +163,49 @@ export const appRouter = router({
       .input(z.object({ id: z.number().optional(), name: z.string(), sortOrder: z.number(), isActive: z.boolean() }))
       .mutation(({ input }) => upsertCategory(input)),
     modifierGroups: publicProcedure.query(() => getModifierGroupsWithOptions()),
+    upsertModifierGroup: publicProcedure
+      .input(z.object({ id: z.number().optional(), name: z.string(), isRequired: z.boolean(), minSelect: z.number(), maxSelect: z.number(), sortOrder: z.number() }))
+      .mutation(({ input }) => upsertModifierGroup(input)),
+    deleteModifierGroup: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteModifierGroup(input.id)),
+    upsertModifierOption: publicProcedure
+      .input(z.object({ id: z.number().optional(), modifierGroupId: z.number(), name: z.string(), priceAdd: z.number(), sortOrder: z.number(), isActive: z.boolean() }))
+      .mutation(({ input }) => upsertModifierOption(input)),
+    deleteModifierOption: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteModifierOption(input.id)),
+  }),
+
+  // ─── Settings ────────────────────────────────────────────────────────────────
+  settings: router({
+    get: publicProcedure.query(() => getStoreSettings()),
+    update: publicProcedure
+      .input(z.object({
+        shopName: z.string().optional(),
+        logoUrl: z.string().nullable().optional(),
+        address: z.string().optional(),
+        phone: z.string().optional(),
+        taxId: z.string().optional(),
+        vatEnabled: z.boolean().optional(),
+        vatRate: z.number().optional(),
+        openTime: z.string().optional(),
+        closeTime: z.string().optional(),
+        promptpayQrUrl: z.string().nullable().optional(),
+      }))
+      .mutation(({ input }) => updateStoreSettings(input)),
+  }),
+
+  // ─── Sales Channels ──────────────────────────────────────────────────────────
+  channels: router({
+    list: publicProcedure.query(() => getSalesChannels()),
+    listAll: publicProcedure.query(() => getAllSalesChannels()),
+    upsert: publicProcedure
+      .input(z.object({ id: z.number().optional(), name: z.string(), slug: z.string(), isActive: z.boolean(), sortOrder: z.number() }))
+      .mutation(({ input }) => upsertSalesChannel(input)),
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteSalesChannel(input.id)),
   }),
 });
 

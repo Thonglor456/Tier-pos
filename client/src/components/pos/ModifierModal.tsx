@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { CartModifier, SalesChannel } from "@/types/pos";
+import type { CartModifier } from "@/types/pos";
 
-type Variant = { id: number; name: string; priceWalkin: string | number; priceGrab: string | number };
+type Variant = { id: number; name: string; priceWalkin: string | number; priceGrab: string | number; priceLineman?: string | number | null };
 type ModOption = { id: number; name: string; priceAdd: string | number; modifierGroupId: number };
 type ModGroup = { id: number; name: string; isRequired: boolean; minSelect: number; maxSelect: number; options: ModOption[] };
 type ItemData = { id: number; name: string; variants: Variant[]; modifierGroupIds: number[] };
@@ -11,21 +11,25 @@ type ItemData = { id: number; name: string; variants: Variant[]; modifierGroupId
 interface Props {
   item: ItemData;
   modifierGroups: ModGroup[];
-  channel: SalesChannel;
+  channelSlug: string;
   onConfirm: (variantId: number, modifiers: CartModifier[]) => void;
   onClose: () => void;
 }
 
-export default function ModifierModal({ item, modifierGroups, channel, onConfirm, onClose }: Props) {
+function getVariantPrice(v: Variant, channelSlug: string): number {
+  if (channelSlug === "grab") return parseFloat(String(v.priceGrab));
+  if (channelSlug === "lineman") return parseFloat(String(v.priceLineman ?? v.priceGrab));
+  return parseFloat(String(v.priceWalkin));
+}
+
+export default function ModifierModal({ item, modifierGroups, channelSlug, onConfirm, onClose }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
     item.variants.length === 1 ? item.variants[0]!.id : null
   );
   const [selectedOptions, setSelectedOptions] = useState<Record<number, number[]>>({});
 
   const selectedVariant = item.variants.find((v) => v.id === selectedVariantId);
-  const basePrice = selectedVariant
-    ? parseFloat(String(channel === "walkin" ? selectedVariant.priceWalkin : selectedVariant.priceGrab))
-    : 0;
+  const basePrice = selectedVariant ? getVariantPrice(selectedVariant, channelSlug) : 0;
   const modifiersTotal = Object.values(selectedOptions).flat().reduce((sum, optId) => {
     for (const g of modifierGroups) {
       const opt = g.options.find((o) => o.id === optId);
@@ -47,12 +51,8 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
   function toggleOption(groupId: number, optionId: number, maxSelect: number) {
     setSelectedOptions((prev) => {
       const current = prev[groupId] ?? [];
-      if (current.includes(optionId)) {
-        return { ...prev, [groupId]: current.filter((id) => id !== optionId) };
-      }
-      if (maxSelect === 1) {
-        return { ...prev, [groupId]: [optionId] };
-      }
+      if (current.includes(optionId)) return { ...prev, [groupId]: current.filter((id) => id !== optionId) };
+      if (maxSelect === 1) return { ...prev, [groupId]: [optionId] };
       if (current.length >= maxSelect) return prev;
       return { ...prev, [groupId]: [...current, optionId] };
     });
@@ -74,7 +74,6 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>{item.name}</h2>
@@ -86,24 +85,19 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-          {/* Variants */}
           {item.variants.length > 1 && (
             <div>
-              <p className="text-sm font-semibold text-foreground mb-2">
-                ขนาด / ประเภท <span className="text-destructive">*</span>
-              </p>
+              <p className="text-sm font-semibold text-foreground mb-2">ขนาด / ประเภท <span className="text-destructive">*</span></p>
               <div className="flex gap-2 flex-wrap">
                 {item.variants.map((v) => {
-                  const price = parseFloat(String(channel === "walkin" ? v.priceWalkin : v.priceGrab));
+                  const price = getVariantPrice(v, channelSlug);
                   const isSelected = selectedVariantId === v.id;
                   return (
                     <button
                       key={v.id}
                       onClick={() => setSelectedVariantId(v.id)}
                       className={`flex-1 min-w-[100px] px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-150 ${
-                        isSelected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-foreground hover:border-primary/50"
+                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:border-primary/50"
                       }`}
                     >
                       <span className="block">{v.name}</span>
@@ -115,13 +109,11 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
             </div>
           )}
 
-          {/* Modifier Groups */}
           {modifierGroups.map((group) => (
             <div key={group.id}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold text-foreground">
-                  {group.name}
-                  {group.isRequired && <span className="text-destructive ml-1">*</span>}
+                  {group.name}{group.isRequired && <span className="text-destructive ml-1">*</span>}
                 </p>
                 {!group.isRequired && <span className="text-xs text-muted-foreground">ไม่บังคับ</span>}
                 {group.maxSelect > 1 && <span className="text-xs text-muted-foreground">เลือกได้สูงสุด {group.maxSelect}</span>}
@@ -135,9 +127,7 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
                       key={opt.id}
                       onClick={() => toggleOption(group.id, opt.id, group.maxSelect)}
                       className={`flex items-center justify-between px-3 py-2.5 rounded-xl border-2 text-sm transition-all duration-150 ${
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-background text-foreground hover:border-primary/40"
+                        isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40"
                       }`}
                     >
                       <span className="flex items-center gap-2">
@@ -153,13 +143,10 @@ export default function ModifierModal({ item, modifierGroups, channel, onConfirm
           ))}
         </div>
 
-        {/* Footer */}
         <div className="px-5 py-4 border-t border-border">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-muted-foreground">ราคารวม</span>
-            <span className="text-xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>
-              ฿{total}
-            </span>
+            <span className="text-xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>฿{total}</span>
           </div>
           <Button
             onClick={handleConfirm}

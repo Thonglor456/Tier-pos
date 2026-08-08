@@ -48,3 +48,24 @@
 - [x] Upload 15 product images to webdev static storage
 - [x] Update ProductGrid with correct image paths
 - [x] Redesign OrderPanel with summary rows matching reference
+
+## Phase 7: Staff System, Settings, LINE MAN, Payment Methods
+- [x] DB: staff table (name, PIN hash, role: staff/manager)
+- [x] DB: store_settings table (shop name, logo, address, phone, tax_id, vat_enabled, vat_rate, open_time, close_time)
+- [x] DB: sales_channels table (dynamic: หน้าร้าน, Grab, LINE MAN)
+- [x] DB: item_variants add price_lineman column
+- [x] DB: orders add staff_id, payment_method add thai_chuay_thai
+- [x] Backend: staff router (CRUD, PIN verify)
+- [x] Backend: settings router (get/update store settings)
+- [x] Backend: sales_channels router (CRUD)
+- [x] Backend: update orders router to accept staff_id and new payment methods
+- [x] Backend: update reports router for staff summary and payment method breakdown
+- [x] UI: Staff PIN Login Screen (before POS)
+- [x] UI: Settings page (shop info, VAT, hours, channels, modifier groups)
+- [x] UI: POS channel selector dynamic from DB (หน้าร้าน/Grab/LINE MAN)
+- [x] UI: Payment Modal — add โอนธนาคาร (QR upload), ไทยช่วยไทย
+- [x] UI: Admin — staff management page (add/edit/delete, role)
+- [x] UI: Admin — guard manager-only sections by role
+- [x] UI: Reports — staff sales summary filter
+- [x] UI: Reports — payment method breakdown
+- [x] Vitest: staff PIN and role tests (10 tests passing)

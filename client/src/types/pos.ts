@@ -1,7 +1,6 @@
 // Cart & Order types for frontend state management
 
-export type SalesChannel = "walkin" | "grab";
-export type PaymentMethod = "cash" | "transfer";
+export type PaymentMethod = "cash" | "transfer" | "thai_chuay_thai";
 
 export interface CartModifier {
   modifierOptionId: number;
@@ -22,4 +21,3 @@ export interface CartItem {
   totalPrice: number;
   modifiers: CartModifier[];
 }
-

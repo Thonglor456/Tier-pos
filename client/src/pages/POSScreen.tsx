@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import type { CartItem, CartModifier, SalesChannel } from "@/types/pos";
+import type { CartItem, CartModifier } from "@/types/pos";
 import CategoryTabs from "@/components/pos/CategoryTabs";
 import ProductGrid from "@/components/pos/ProductGrid";
 import OrderPanel from "@/components/pos/OrderPanel";
@@ -10,10 +10,12 @@ import ModifierModal from "@/components/pos/ModifierModal";
 import PaymentModal from "@/components/pos/PaymentModal";
 import CancelPinModal from "@/components/pos/CancelPinModal";
 import POSHeader from "@/components/pos/POSHeader";
+import { useStaff } from "@/contexts/StaffContext";
 
 export default function POSScreen() {
+  const { currentStaff } = useStaff();
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
-  const [channel, setChannel] = useState<SalesChannel>("walkin");
+  const [channelSlug, setChannelSlug] = useState<string>("walkin");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [pendingItem, setPendingItem] = useState<{ itemId: number; variantId?: number } | null>(null);
   const [showPayment, setShowPayment] = useState(false);
@@ -22,9 +24,16 @@ export default function POSScreen() {
   const { data: categories = [] } = trpc.menu.categories.useQuery();
   const { data: items = [] } = trpc.menu.items.useQuery({ categoryId: selectedCategoryId });
   const { data: modifierGroups = [] } = trpc.menu.modifierGroups.useQuery();
+  const { data: channels = [] } = trpc.channels.list.useQuery();
 
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.totalPrice, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+
+  const getPrice = useCallback((variant: { priceWalkin: string | number; priceGrab: string | number; priceLineman?: string | number | null }) => {
+    if (channelSlug === "grab") return parseFloat(String(variant.priceGrab));
+    if (channelSlug === "lineman") return parseFloat(String(variant.priceLineman ?? variant.priceGrab));
+    return parseFloat(String(variant.priceWalkin));
+  }, [channelSlug]);
 
   const handleProductPress = useCallback((itemId: number) => {
     const item = items.find((i) => i.id === itemId);
@@ -34,10 +43,9 @@ export default function POSScreen() {
     if (hasModifiers || hasMultipleVariants) {
       setPendingItem({ itemId });
     } else {
-      // Auto-add with single variant
       const variant = item.variants[0];
       if (!variant) return;
-      const basePrice = channel === "walkin" ? parseFloat(String(variant.priceWalkin)) : parseFloat(String(variant.priceGrab));
+      const basePrice = getPrice(variant);
       const newItem: CartItem = {
         cartId: nanoid(),
         itemId: item.id,
@@ -52,7 +60,7 @@ export default function POSScreen() {
       };
       setCart((prev) => [...prev, newItem]);
     }
-  }, [items, channel]);
+  }, [items, getPrice]);
 
   const handleModifierConfirm = useCallback((variantId: number, modifiers: CartModifier[]) => {
     if (!pendingItem) return;
@@ -60,7 +68,7 @@ export default function POSScreen() {
     if (!item) return;
     const variant = item.variants.find((v) => v.id === variantId);
     if (!variant) return;
-    const basePrice = channel === "walkin" ? parseFloat(String(variant.priceWalkin)) : parseFloat(String(variant.priceGrab));
+    const basePrice = getPrice(variant);
     const modifiersPrice = modifiers.reduce((sum, m) => sum + m.priceAdd, 0);
     const newItem: CartItem = {
       cartId: nanoid(),
@@ -76,7 +84,7 @@ export default function POSScreen() {
     };
     setCart((prev) => [...prev, newItem]);
     setPendingItem(null);
-  }, [pendingItem, items, channel]);
+  }, [pendingItem, items, getPrice]);
 
   const handleUpdateQty = useCallback((cartId: string, delta: number) => {
     setCart((prev) => prev.map((item) => {
@@ -91,14 +99,16 @@ export default function POSScreen() {
     setCart((prev) => prev.filter((item) => item.cartId !== cartId));
   }, []);
 
-  const handleChannelChange = useCallback((newChannel: SalesChannel) => {
-    setChannel(newChannel);
-    // Recalculate prices in cart
+  const handleChannelChange = useCallback((newSlug: string) => {
+    setChannelSlug(newSlug);
     setCart((prev) => prev.map((cartItem) => {
       const item = items.find((i) => i.id === cartItem.itemId);
       const variant = item?.variants.find((v) => v.id === cartItem.variantId);
       if (!variant) return cartItem;
-      const newBase = newChannel === "walkin" ? parseFloat(String(variant.priceWalkin)) : parseFloat(String(variant.priceGrab));
+      let newBase: number;
+      if (newSlug === "grab") newBase = parseFloat(String(variant.priceGrab));
+      else if (newSlug === "lineman") newBase = parseFloat(String((variant as { priceLineman?: string | number | null }).priceLineman ?? variant.priceGrab));
+      else newBase = parseFloat(String(variant.priceWalkin));
       return { ...cartItem, basePrice: newBase, totalPrice: (newBase + cartItem.modifiersPrice) * cartItem.quantity };
     }));
   }, [items]);
@@ -119,27 +129,20 @@ export default function POSScreen() {
     return modifierGroups.filter((g) => pendingItemData.modifierGroupIds.includes(g.id));
   }, [pendingItemData, modifierGroups]);
 
+  const channelName = channels.find((c) => c.slug === channelSlug)?.name ?? "หน้าร้าน";
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
-      <POSHeader channel={channel} onChannelChange={handleChannelChange} cartCount={cartCount} />
+      <POSHeader channelSlug={channelSlug} channels={channels} onChannelChange={handleChannelChange} cartCount={cartCount} />
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Menu */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          <CategoryTabs
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-          <ProductGrid
-            items={items}
-            channel={channel}
-            onPress={handleProductPress}
-          />
+          <CategoryTabs categories={categories} selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
+          <ProductGrid items={items} channelSlug={channelSlug} onPress={handleProductPress} />
         </div>
-        {/* Right: Order Panel */}
         <OrderPanel
           cart={cart}
-          channel={channel}
+          channelSlug={channelSlug}
+          channelName={channelName}
           total={cartTotal}
           onUpdateQty={handleUpdateQty}
           onRemove={handleRemoveItem}
@@ -149,29 +152,27 @@ export default function POSScreen() {
         />
       </div>
 
-      {/* Modifier Modal */}
       {pendingItemData && (
         <ModifierModal
           item={pendingItemData}
           modifierGroups={pendingModifierGroups}
-          channel={channel}
+          channelSlug={channelSlug}
           onConfirm={handleModifierConfirm}
           onClose={() => setPendingItem(null)}
         />
       )}
 
-      {/* Payment Modal */}
       {showPayment && (
         <PaymentModal
           cart={cart}
-          channel={channel}
+          channelSlug={channelSlug}
           total={cartTotal}
+          staffId={currentStaff?.id}
           onSuccess={handlePaymentSuccess}
           onClose={() => setShowPayment(false)}
         />
       )}
 
-      {/* Cancel Order PIN Modal */}
       {cancelTarget !== null && (
         <CancelPinModal
           orderId={cancelTarget}
@@ -182,3 +183,4 @@ export default function POSScreen() {
     </div>
   );
 }
+

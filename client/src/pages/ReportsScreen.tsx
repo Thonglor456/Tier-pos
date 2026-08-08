@@ -1,131 +1,257 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck } from "lucide-react";
 
-function formatDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function formatThaiDate(d: Date) {
-  return d.toLocaleDateString("th-TH", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "เงินสด",
+  transfer: "โอนธนาคาร",
+  thai_chuay_thai: "ไทยช่วยไทย",
+};
 
 export default function ReportsScreen() {
-  const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()));
-  const [filterChannel, setFilterChannel] = useState<"walkin" | "grab" | undefined>(undefined);
-  const [filterStatus, setFilterStatus] = useState<"completed" | "cancelled" | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [filterChannel, setFilterChannel] = useState<string>("all");
+  const [filterPayment, setFilterPayment] = useState<string>("all");
+  const [filterStaff, setFilterStaff] = useState<number | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "cancelled">("all");
 
   const { data: summary } = trpc.orders.dailySummary.useQuery({ date: selectedDate });
+  const { data: channels = [] } = trpc.channels.list.useQuery();
+  const { data: staffList = [] } = trpc.posUsers.list.useQuery();
   const { data: orders = [] } = trpc.orders.list.useQuery({
-    startDate: selectedDate + "T00:00:00.000Z",
-    endDate: selectedDate + "T23:59:59.999Z",
-    channel: filterChannel,
-    status: filterStatus,
-    limit: 100,
+    startDate: selectedDate,
+    endDate: selectedDate,
+    channel: filterChannel !== "all" ? filterChannel : undefined,
+    status: filterStatus !== "all" ? filterStatus : undefined,
+    staffId: filterStaff !== "all" ? filterStaff : undefined,
+    limit: 200,
   });
 
-  const summaryCards = useMemo(() => [
-    { label: "ยอดรวม", value: `฿${(summary?.totalRevenue ?? 0).toLocaleString()}`, icon: TrendingUp, color: "text-primary" },
-    { label: "Walk-in", value: `฿${(summary?.walkinRevenue ?? 0).toLocaleString()}`, icon: ShoppingBag, color: "text-amber-700" },
-    { label: "Grab", value: `฿${(summary?.grabRevenue ?? 0).toLocaleString()}`, icon: ShoppingBag, color: "text-green-700" },
-    { label: "เงินสด", value: `฿${(summary?.cashRevenue ?? 0).toLocaleString()}`, icon: Banknote, color: "text-blue-700" },
-    { label: "โอนเงิน", value: `฿${(summary?.transferRevenue ?? 0).toLocaleString()}`, icon: Smartphone, color: "text-purple-700" },
-  ], [summary]);
+  const paymentBreakdown = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    for (const o of orders) {
+      if (o.status !== "completed") continue;
+      const pm = o.paymentMethod ?? "cash";
+      if (!map[pm]) map[pm] = { count: 0, total: 0 };
+      map[pm]!.count++;
+      map[pm]!.total += parseFloat(String(o.totalAmount));
+    }
+    return map;
+  }, [orders]);
+
+  const staffBreakdown = useMemo(() => {
+    const map: Record<number, { name: string; count: number; total: number }> = {};
+    for (const o of orders) {
+      if (o.status !== "completed") continue;
+      const sid = o.staffId ?? 0;
+      const sname = staffList.find((s) => s.id === sid)?.name ?? "ไม่ระบุ";
+      if (!map[sid]) map[sid] = { name: sname, count: 0, total: 0 };
+      map[sid]!.count++;
+      map[sid]!.total += parseFloat(String(o.totalAmount));
+    }
+    return Object.values(map);
+  }, [orders, staffList]);
+
+  const channelBreakdown = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    for (const o of orders) {
+      if (o.status !== "completed") continue;
+      const ch = o.salesChannel ?? "walkin";
+      if (!map[ch]) map[ch] = { count: 0, total: 0 };
+      map[ch]!.count++;
+      map[ch]!.total += parseFloat(String(o.totalAmount));
+    }
+    return map;
+  }, [orders]);
+
+  const totalRevenue = summary?.totalRevenue ?? 0;
+  const totalOrders = (summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0);
+  const completedOrders = summary?.completedCount ?? 0;
+  const cancelledOrders = summary?.cancelledCount ?? 0;
+
+  const filteredOrders = orders.filter((o) => filterPayment === "all" || o.paymentMethod === filterPayment);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="flex items-center gap-4 px-5 py-3 bg-card border-b border-border shadow-sm shrink-0">
         <Link href="/">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">กลับหน้าขาย</span>
+          </button>
         </Link>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
-          <p className="text-sm text-muted-foreground">{formatThaiDate(new Date(selectedDate + "T12:00:00"))}</p>
+        <div className="h-5 w-px bg-border" />
+        <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
+        <div className="ml-auto">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
         </div>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm bg-card text-foreground"
-        />
-      </div>
+      </header>
 
-      <div className="p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {summaryCards.map((card) => (
-            <div key={card.label} className="bg-card rounded-xl border border-border p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <card.icon className={`w-4 h-4 ${card.color}`} />
-                <p className="text-xs text-muted-foreground">{card.label}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "ยอดขายรวม", value: `฿${Number(totalRevenue).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.38 0.08 50)" },
+            { label: "จำนวนบิล", value: `${totalOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.52 0.18 145)" },
+            { label: "สำเร็จ", value: `${completedOrders} บิล`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.52 0.22 200)" },
+            { label: "ยกเลิก", value: `${cancelledOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.55 0.18 25)" },
+          ].map((card) => (
+            <div key={card.label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: card.color }}>
+                {card.icon}
               </div>
-              <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
+              <div>
+                <p className="text-xs text-muted-foreground">{card.label}</p>
+                <p className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>{card.value}</p>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Order count */}
-        <div className="flex gap-4 text-sm text-muted-foreground">
-          <span>สำเร็จ <strong className="text-foreground">{summary?.completedCount ?? 0}</strong> บิล</span>
-          <span>ยกเลิก <strong className="text-destructive">{summary?.cancelledCount ?? 0}</strong> บิล</span>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-2 flex-wrap">
-          {([undefined, "walkin", "grab"] as const).map((ch) => (
-            <button
-              key={String(ch)}
-              onClick={() => setFilterChannel(ch)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterChannel === ch ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}
-            >
-              {ch === undefined ? "ทุกช่องทาง" : ch === "walkin" ? "Walk-in" : "Grab"}
-            </button>
-          ))}
-          <span className="w-px h-6 bg-border self-center" />
-          {([undefined, "completed", "cancelled"] as const).map((st) => (
-            <button
-              key={String(st)}
-              onClick={() => setFilterStatus(st)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterStatus === st ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}
-            >
-              {st === undefined ? "ทุกสถานะ" : st === "completed" ? "สำเร็จ" : "ยกเลิก"}
-            </button>
-          ))}
-        </div>
-
-        {/* Orders Table */}
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="grid grid-cols-5 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
-            <span>เลขบิล</span>
-            <span>เวลา</span>
-            <span>ช่องทาง</span>
-            <span>ชำระ</span>
-            <span className="text-right">ยอด</span>
+        {/* Breakdowns Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Banknote className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground">วิธีชำระเงิน</h3>
+            </div>
+            <div className="space-y-2">
+              {(["cash", "transfer", "thai_chuay_thai"] as const).map((pm) => {
+                const d = paymentBreakdown[pm] ?? { count: 0, total: 0 };
+                const icons: Record<string, React.ReactNode> = { cash: <Banknote className="w-3.5 h-3.5" />, transfer: <Smartphone className="w-3.5 h-3.5" />, thai_chuay_thai: <Heart className="w-3.5 h-3.5" /> };
+                return (
+                  <div key={pm} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <span className="text-muted-foreground">{icons[pm]}</span>
+                      {PAYMENT_LABELS[pm]}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-foreground">฿{d.total.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{d.count} บิล</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          {orders.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground text-sm">ไม่มีรายการ</div>
-          )}
-          {orders.map((order) => (
-            <div key={order.id} className="grid grid-cols-5 px-4 py-3 border-b border-border last:border-0 items-center hover:bg-muted/30 transition-colors">
-              <span className="font-mono text-xs text-foreground">{order.orderNumber}</span>
-              <span className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</span>
-              <span>
-                <Badge variant={order.salesChannel === "walkin" ? "default" : "secondary"} className={order.salesChannel === "grab" ? "bg-green-100 text-green-800" : ""}>
-                  {order.salesChannel === "walkin" ? "Walk-in" : "Grab"}
-                </Badge>
-              </span>
-              <span className="text-sm text-muted-foreground">{order.paymentMethod === "cash" ? "เงินสด" : "โอนเงิน"}</span>
-              <span className={`text-right font-semibold ${order.status === "cancelled" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                ฿{parseFloat(String(order.totalAmount)).toLocaleString()}
-              </span>
+
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Truck className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground">ช่องทางการขาย</h3>
             </div>
-          ))}
+            <div className="space-y-2">
+              {channels.map((ch) => {
+                const d = channelBreakdown[ch.slug] ?? { count: 0, total: 0 };
+                return (
+                  <div key={ch.slug} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Store className="w-3.5 h-3.5 text-muted-foreground" />
+                      {ch.name}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-foreground">฿{d.total.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{d.count} บิล</p>
+                    </div>
+                  </div>
+                );
+              })}
+              {channels.length === 0 && <p className="text-xs text-muted-foreground">ไม่มีข้อมูล</p>}
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground">ยอดขายตามพนักงาน</h3>
+            </div>
+            <div className="space-y-2">
+              {staffBreakdown.map((s) => (
+                <div key={s.name} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "oklch(0.38 0.08 50)" }}>
+                      {s.name.charAt(0)}
+                    </div>
+                    <span className="text-sm text-foreground">{s.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-foreground">฿{s.total.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{s.count} บิล</p>
+                  </div>
+                </div>
+              ))}
+              {staffBreakdown.length === 0 && <p className="text-xs text-muted-foreground">ไม่มีข้อมูล</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* Order List with Filters */}
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground mr-2">รายการบิล</h3>
+            <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+              <option value="all">ทุกช่องทาง</option>
+              {channels.map((ch) => <option key={ch.slug} value={ch.slug}>{ch.name}</option>)}
+            </select>
+            <select value={filterPayment} onChange={(e) => setFilterPayment(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+              <option value="all">ทุกวิธีชำระ</option>
+              {Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select value={filterStaff} onChange={(e) => setFilterStaff(e.target.value === "all" ? "all" : Number(e.target.value))} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+              <option value="all">ทุกพนักงาน</option>
+              {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "completed" | "cancelled")} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+              <option value="all">ทุกสถานะ</option>
+              <option value="completed">สำเร็จ</option>
+              <option value="cancelled">ยกเลิก</option>
+            </select>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  {["เวลา", "บิล #", "ช่องทาง", "วิธีชำระ", "พนักงาน", "ยอด", "สถานะ"].map((h) => (
+                    <th key={h} className={`px-4 py-2.5 text-xs font-semibold text-muted-foreground ${h === "ยอด" ? "text-right" : h === "สถานะ" ? "text-center" : "text-left"}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order, idx) => {
+                  const staffName = staffList.find((s) => s.id === order.staffId)?.name ?? "-";
+                  const chName = channels.find((c) => c.slug === order.salesChannel)?.name ?? order.salesChannel;
+                  return (
+                    <tr key={order.id} className={`border-b border-border/40 last:border-0 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(order.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-mono text-foreground">#{order.id}</td>
+                      <td className="px-4 py-2.5 text-xs text-foreground">{chName}</td>
+                      <td className="px-4 py-2.5 text-xs text-foreground">{PAYMENT_LABELS[order.paymentMethod ?? "cash"] ?? order.paymentMethod}</td>
+                      <td className="px-4 py-2.5 text-xs text-foreground">{staffName}</td>
+                      <td className="px-4 py-2.5 text-sm font-bold text-foreground text-right">฿{Number(order.totalAmount).toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === "completed" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {order.status === "completed" ? "สำเร็จ" : "ยกเลิก"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredOrders.length === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">ไม่มีรายการในวันที่เลือก</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

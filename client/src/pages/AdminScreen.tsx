@@ -2,146 +2,242 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useStaff } from "@/contexts/StaffContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Pencil, Coffee } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, ShieldCheck, User, Settings, Coffee, Tag, Layers } from "lucide-react";
 import ItemFormModal from "@/components/admin/ItemFormModal";
 import CategoryFormModal from "@/components/admin/CategoryFormModal";
+import StaffFormModal from "@/components/admin/StaffFormModal";
+
+type AdminTab = "items" | "categories" | "staff";
 
 export default function AdminScreen() {
-  const [activeTab, setActiveTab] = useState<"items" | "categories" | "users">("items");
-  const [editItem, setEditItem] = useState<number | null | "new">(null);
-  const [editCategory, setEditCategory] = useState<number | null | "new">(null);
+  const { currentStaff } = useStaff();
+  const isManager = currentStaff?.role === "manager";
+
+  const [tab, setTab] = useState<AdminTab>("items");
+  const [editItemId, setEditItemId] = useState<number | null | "new">(null);
+  const [editCategoryId, setEditCategoryId] = useState<number | null | "new">(null);
+  const [editStaffId, setEditStaffId] = useState<number | null | "new">(null);
 
   const { data: items = [], refetch: refetchItems } = trpc.admin.items.useQuery();
-  const { data: categories = [], refetch: refetchCats } = trpc.admin.categories.useQuery();
+  const { data: categories = [], refetch: refetchCategories } = trpc.admin.categories.useQuery();
   const { data: modifierGroups = [] } = trpc.admin.modifierGroups.useQuery();
+  const { data: staffList = [], refetch: refetchStaff } = trpc.posUsers.list.useQuery();
 
-  const toggleMutation = trpc.admin.toggleItem.useMutation({
+  const toggleItem = trpc.admin.toggleItem.useMutation({
     onSuccess: () => refetchItems(),
     onError: (e) => toast.error(e.message),
   });
+  const deleteStaff = trpc.posUsers.delete.useMutation({
+    onSuccess: () => { toast.success("ลบพนักงานแล้ว"); refetchStaff(); },
+    onError: (e) => toast.error(e.message),
+  });
 
-  const groupedItems = categories.map((cat) => ({
+  const itemsByCategory = categories.map((cat) => ({
     ...cat,
     items: items.filter((i) => i.categoryId === cat.id),
   }));
 
+  const TABS: Array<{ id: AdminTab; label: string; icon: React.ReactNode; managerOnly?: boolean }> = [
+    { id: "items", label: "สินค้า", icon: <Coffee className="w-4 h-4" /> },
+    { id: "categories", label: "หมวดหมู่", icon: <Tag className="w-4 h-4" /> },
+    { id: "staff", label: "พนักงาน", icon: <User className="w-4 h-4" />, managerOnly: true },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="flex items-center gap-4 px-5 py-3 bg-card border-b border-border shadow-sm shrink-0">
         <Link href="/">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการสินค้า</h1>
-          <p className="text-sm text-muted-foreground">Tier Coffee — Admin</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 px-6 pt-4">
-        {(["items", "categories"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-          >
-            {tab === "items" ? "สินค้า" : "หมวดหมู่"}
+          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">กลับหน้าขาย</span>
           </button>
-        ))}
-      </div>
-
-      <div className="p-6">
-        {activeTab === "items" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">{items.length} รายการ</p>
-              <Button onClick={() => setEditItem("new")} size="sm">
-                <Plus className="w-4 h-4 mr-1" /> เพิ่มสินค้า
-              </Button>
-            </div>
-            {groupedItems.map((cat) => cat.items.length > 0 && (
-              <div key={cat.id}>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Coffee className="w-4 h-4" /> {cat.name}
-                </h3>
-                <div className="bg-card rounded-xl border border-border overflow-hidden">
-                  {cat.items.map((item, idx) => (
-                    <div key={item.id} className={`flex items-center gap-4 px-4 py-3 ${idx < cat.items.length - 1 ? "border-b border-border" : ""}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.variants.length > 0
-                            ? item.variants.map((v) => `${v.name} ฿${v.priceWalkin}`).join(" / ")
-                            : "ไม่มี variant"}
-                        </p>
-                      </div>
-                      <Badge variant={item.isActive ? "default" : "secondary"} className="shrink-0">
-                        {item.isActive ? "เปิด" : "ปิด"}
-                      </Badge>
-                      <Switch
-                        checked={item.isActive}
-                        onCheckedChange={(v) => toggleMutation.mutate({ itemId: item.id, isActive: v })}
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => setEditItem(item.id)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+        </Link>
+        <div className="h-5 w-px bg-border" />
+        <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการร้าน</h1>
+        <div className="ml-auto flex items-center gap-2">
+          {isManager && (
+            <Link href="/settings">
+              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <Settings className="w-4 h-4" />
+                ตั้งค่า
+              </button>
+            </Link>
+          )}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {isManager ? <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> : <User className="w-3.5 h-3.5" />}
+            {currentStaff?.name}
           </div>
-        )}
+        </div>
+      </header>
 
-        {activeTab === "categories" && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">{categories.length} หมวดหมู่</p>
-              <Button onClick={() => setEditCategory("new")} size="sm">
-                <Plus className="w-4 h-4 mr-1" /> เพิ่มหมวดหมู่
-              </Button>
-            </div>
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              {categories.map((cat, idx) => (
-                <div key={cat.id} className={`flex items-center gap-4 px-4 py-3 ${idx < categories.length - 1 ? "border-b border-border" : ""}`}>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{cat.name}</p>
-                    <p className="text-xs text-muted-foreground">ลำดับ {cat.sortOrder}</p>
-                  </div>
-                  <Badge variant={cat.isActive ? "default" : "secondary"}>{cat.isActive ? "เปิด" : "ปิด"}</Badge>
-                  <Button variant="ghost" size="icon" onClick={() => setEditCategory(cat.id)}>
-                    <Pencil className="w-4 h-4" />
+      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 57px)" }}>
+        <nav className="w-48 bg-card border-r border-border flex flex-col pt-4 gap-1 px-2 shrink-0">
+          {TABS.filter((t) => !t.managerOnly || isManager).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                tab === t.id ? "text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+              style={tab === t.id ? { background: "oklch(0.38 0.08 50)" } : {}}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <main className="flex-1 overflow-y-auto p-5">
+          {tab === "items" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายการสินค้า</h2>
+                {isManager && (
+                  <Button size="sm" onClick={() => setEditItemId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                    <Plus className="w-4 h-4 mr-1" /> เพิ่มสินค้า
                   </Button>
+                )}
+              </div>
+              {itemsByCategory.map((cat) => (
+                <div key={cat.id}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Layers className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="text-sm font-bold text-foreground">{cat.name}</h3>
+                    <span className="text-xs text-muted-foreground">({cat.items.length} รายการ)</span>
+                  </div>
+                  <div className="bg-card rounded-xl border border-border overflow-hidden">
+                    {cat.items.map((item, idx) => (
+                      <div key={item.id} className={`flex items-center gap-3 px-4 py-3 ${idx < cat.items.length - 1 ? "border-b border-border/50" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {item.variants.map((v) => `${v.name}: ฿${v.priceWalkin}`).join(" · ")}
+                          </p>
+                        </div>
+                        <Badge variant={item.isActive ? "default" : "secondary"} className="text-xs">
+                          {item.isActive ? "เปิดขาย" : "ปิด"}
+                        </Badge>
+                        <Switch checked={item.isActive} onCheckedChange={(v) => toggleItem.mutate({ itemId: item.id, isActive: v })} />
+                        {isManager && (
+                          <button onClick={() => setEditItemId(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {cat.items.length === 0 && (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">ยังไม่มีสินค้าในหมวดนี้</div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+
+          {tab === "categories" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>หมวดหมู่</h2>
+                {isManager && (
+                  <Button size="sm" onClick={() => setEditCategoryId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                    <Plus className="w-4 h-4 mr-1" /> เพิ่มหมวด
+                  </Button>
+                )}
+              </div>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                {categories.map((cat, idx) => (
+                  <div key={cat.id} className={`flex items-center gap-3 px-4 py-3 ${idx < categories.length - 1 ? "border-b border-border/50" : ""}`}>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">{cat.name}</p>
+                      <p className="text-xs text-muted-foreground">ลำดับ: {cat.sortOrder}</p>
+                    </div>
+                    <Badge variant={cat.isActive ? "default" : "secondary"} className="text-xs">
+                      {cat.isActive ? "แสดง" : "ซ่อน"}
+                    </Badge>
+                    {isManager && (
+                      <button onClick={() => setEditCategoryId(cat.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === "staff" && isManager && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการพนักงาน</h2>
+                <Button size="sm" onClick={() => setEditStaffId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                  <Plus className="w-4 h-4 mr-1" /> เพิ่มพนักงาน
+                </Button>
+              </div>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                {staffList.map((staff, idx) => (
+                  <div key={staff.id} className={`flex items-center gap-3 px-4 py-3 ${idx < staffList.length - 1 ? "border-b border-border/50" : ""}`}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                      style={{ background: staff.role === "manager" ? "oklch(0.38 0.08 50)" : "oklch(0.55 0.05 250)" }}>
+                      {staff.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{staff.name}</p>
+                      <p className="text-xs text-muted-foreground">PIN: {"•".repeat(staff.pinCode?.length ?? 4)}</p>
+                    </div>
+                    <Badge variant={staff.role === "manager" ? "default" : "secondary"} className="text-xs">
+                      {staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
+                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setEditStaffId(staff.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`ลบ ${staff.name}?`)) deleteStaff.mutate({ id: staff.id }); }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {staffList.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">ยังไม่มีพนักงาน</div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
       </div>
 
-      {editItem !== null && (
+      {editItemId !== null && (
         <ItemFormModal
-          itemId={editItem === "new" ? undefined : editItem}
+          itemId={editItemId === "new" ? undefined : editItemId}
           items={items}
           categories={categories}
           modifierGroups={modifierGroups}
-          onClose={() => setEditItem(null)}
-          onSaved={() => { setEditItem(null); refetchItems(); }}
+          onClose={() => setEditItemId(null)}
+          onSaved={() => { setEditItemId(null); refetchItems(); }}
         />
       )}
-      {editCategory !== null && (
+      {editCategoryId !== null && (
         <CategoryFormModal
-          categoryId={editCategory === "new" ? undefined : editCategory}
+          categoryId={editCategoryId === "new" ? undefined : editCategoryId}
           categories={categories}
-          onClose={() => setEditCategory(null)}
-          onSaved={() => { setEditCategory(null); refetchCats(); }}
+          onClose={() => setEditCategoryId(null)}
+          onSaved={() => { setEditCategoryId(null); refetchCategories(); }}
+        />
+      )}
+      {editStaffId !== null && (
+        <StaffFormModal
+          staffId={editStaffId === "new" ? undefined : editStaffId}
+          onClose={() => setEditStaffId(null)}
+          onSaved={() => { setEditStaffId(null); refetchStaff(); }}
         />
       )}
     </div>
   );
 }
-

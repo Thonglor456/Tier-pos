@@ -1,10 +1,17 @@
 import { Minus, Plus, Trash2, ShoppingCart, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { CartItem, SalesChannel } from "@/types/pos";
+import type { CartItem } from "@/types/pos";
+
+const CHANNEL_COLORS: Record<string, string> = {
+  walkin: "oklch(0.38 0.08 50)",
+  grab: "oklch(0.52 0.18 145)",
+  lineman: "oklch(0.52 0.22 200)",
+};
 
 interface Props {
   cart: CartItem[];
-  channel: SalesChannel;
+  channelSlug: string;
+  channelName: string;
   total: number;
   onUpdateQty: (cartId: string, delta: number) => void;
   onRemove: (cartId: string) => void;
@@ -13,28 +20,18 @@ interface Props {
   onClearCart?: () => void;
 }
 
-export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove, onCheckout, onClearCart }: Props) {
-  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
-
+export default function OrderPanel({ cart, channelSlug, channelName, total, onUpdateQty, onRemove, onCheckout, onClearCart }: Props) {
   return (
-    <div
-      className="flex flex-col border-l border-border bg-card shrink-0"
-      style={{ width: "320px" }}
-    >
-      {/* Panel Header */}
+    <div className="flex flex-col border-l border-border bg-card shrink-0" style={{ width: "320px" }}>
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
           <span className="font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายการ</span>
           <div className="flex items-center gap-2">
-            {/* Channel badge */}
             <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={channel === "walkin"
-                ? { background: "oklch(0.38 0.08 50)", color: "white" }
-                : { background: "oklch(0.52 0.18 145)", color: "white" }
-              }
+              className="text-xs font-semibold px-2.5 py-1 rounded-full text-white"
+              style={{ background: CHANNEL_COLORS[channelSlug] ?? "oklch(0.38 0.08 50)" }}
             >
-              {channel === "walkin" ? "หน้าร้าน" : "Grab"}
+              {channelName}
             </span>
             {cart.length > 0 && onClearCart && (
               <button
@@ -47,7 +44,6 @@ export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove
             )}
           </div>
         </div>
-        {/* Column headers */}
         {cart.length > 0 && (
           <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground font-medium">
             <span>รายการ</span>
@@ -59,7 +55,6 @@ export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove
         )}
       </div>
 
-      {/* Cart Items */}
       <div className="flex-1 overflow-y-auto">
         {cart.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
@@ -73,33 +68,22 @@ export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground leading-tight">{item.itemName}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{item.variantName}
-                  {item.modifiers.length > 0 && `, ${item.modifiers.map((m) => m.modifierName).join(", ")}`}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {item.variantName}{item.modifiers.length > 0 && `, ${item.modifiers.map((m) => m.modifierName).join(", ")}`}
                 </p>
               </div>
-              {/* Qty controls */}
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => onUpdateQty(item.cartId, -1)}
-                  className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors"
-                >
+                <button onClick={() => onUpdateQty(item.cartId, -1)} className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors">
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
-                <button
-                  onClick={() => onUpdateQty(item.cartId, 1)}
-                  className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors"
-                >
+                <button onClick={() => onUpdateQty(item.cartId, 1)} className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors">
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
-              {/* Price + delete */}
               <div className="flex items-center gap-1.5 shrink-0 min-w-[60px] justify-end">
                 <span className="text-sm font-bold text-foreground">{item.totalPrice.toLocaleString()}.-</span>
-                <button
-                  onClick={() => onRemove(item.cartId)}
-                  className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
-                >
+                <button onClick={() => onRemove(item.cartId)} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -108,7 +92,6 @@ export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove
         ))}
       </div>
 
-      {/* Footer Summary */}
       <div className="p-4 border-t border-border space-y-2">
         <div className="flex justify-between items-center text-sm text-muted-foreground">
           <span>รวมทั้งหมด</span>
@@ -137,3 +120,4 @@ export default function OrderPanel({ cart, channel, total, onUpdateQty, onRemove
     </div>
   );
 }
+

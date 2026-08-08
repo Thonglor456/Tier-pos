@@ -9,6 +9,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/mysql-core";
+import { time } from "drizzle-orm/mysql-core";
 
 // ─── Auth Users (Manus OAuth) ────────────────────────────────────────────────
 export const users = mysqlTable("users", {
@@ -70,6 +71,7 @@ export const itemVariants = mysqlTable("item_variants", {
   name: varchar("name", { length: 100 }).notNull(),
   priceWalkin: decimal("priceWalkin", { precision: 10, scale: 2 }).notNull(),
   priceGrab: decimal("priceGrab", { precision: 10, scale: 2 }).notNull(),
+  priceLineman: decimal("priceLineman", { precision: 10, scale: 2 }).notNull().default("0"),
   isActive: boolean("isActive").default(true).notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -116,12 +118,14 @@ export const itemModifierGroups = mysqlTable(
 export const orders = mysqlTable("orders", {
   id: int("id").autoincrement().primaryKey(),
   orderNumber: varchar("orderNumber", { length: 30 }).notNull().unique(),
-  salesChannel: mysqlEnum("salesChannel", ["walkin", "grab"]).notNull(),
+  salesChannel: varchar("salesChannel", { length: 50 }).notNull(),
   status: mysqlEnum("status", ["completed", "cancelled"]).default("completed").notNull(),
   totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
-  paymentMethod: mysqlEnum("paymentMethod", ["cash", "transfer"]).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "transfer", "thai_chuay_thai"]).notNull(),
   cashReceived: decimal("cashReceived", { precision: 10, scale: 2 }),
   changeAmount: decimal("changeAmount", { precision: 10, scale: 2 }),
+  vatAmount: decimal("vatAmount", { precision: 10, scale: 2 }).default("0"),
+  staffId: int("staffId"),
   cancelledBy: varchar("cancelledBy", { length: 100 }),
   cancelReason: text("cancelReason"),
   cancelledAt: timestamp("cancelledAt"),
@@ -157,3 +161,32 @@ export const orderItemModifiers = mysqlTable("order_item_modifiers", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type OrderItemModifier = typeof orderItemModifiers.$inferSelect;
+
+// ─── Store Settings ───────────────────────────────────────────────────────────
+export const storeSettings = mysqlTable("store_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  shopName: varchar("shopName", { length: 200 }).default("Tier Coffee").notNull(),
+  logoUrl: text("logoUrl"),
+  address: text("address"),
+  phone: varchar("phone", { length: 20 }),
+  taxId: varchar("taxId", { length: 20 }),
+  vatEnabled: boolean("vatEnabled").default(false).notNull(),
+  vatRate: decimal("vatRate", { precision: 5, scale: 2 }).default("7.00").notNull(),
+  openTime: varchar("openTime", { length: 5 }).default("07:00"),
+  closeTime: varchar("closeTime", { length: 5 }).default("20:00"),
+  promptpayQrUrl: text("promptpayQrUrl"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StoreSettings = typeof storeSettings.$inferSelect;
+
+// ─── Sales Channels ───────────────────────────────────────────────────────────
+export const salesChannels = mysqlTable("sales_channels", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 50 }).notNull().unique(),
+  slug: varchar("slug", { length: 50 }).notNull().unique(),
+  isActive: boolean("isActive").default(true).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SalesChannel = typeof salesChannels.$inferSelect;
