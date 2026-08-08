@@ -111,7 +111,12 @@
 - [x] Route: /dashboard ใน App.tsx
 
 ## Phase 12: Export CSV/Excel
-- [ ] สร้าง export utility (client/src/lib/exportUtils.ts) — แปลงข้อมูลเป็น CSV string และ trigger download
-- [ ] ReportsScreen: เพิ่มปุ่ม Export CSV ใน toolbar (ส่งออกรายการบิลในช่วงวันที่ที่เลือก)
-- [ ] DashboardScreen: เพิ่มปุ่ม Export CSV สำหรับ top items และ recent orders
-- [ ] Export ครอบคลุมข้อมูล: เลขบิล, วันที่/เวลา, พนักงาน, ช่องทาง, วิธีชำระ, สาขา, ยอดรวม, สถานะ
+- [x] สร้าง export utility (client/src/lib/exportUtils.ts) — แปลงข้อมูลเป็น CSV string และ trigger download
+- [x] ReportsScreen: เพิ่มปุ่ม Export CSV ใน toolbar (ส่งออกรายการบิลในช่วงวันที่ที่เลือก)
+- [x] DashboardScreen: เพิ่มปุ่ม Export CSV สำหรับ top items และ recent orders
+- [x] Export ครอบคลุมข้อมูล: เลขบิล, วันที่/เวลา, พนักงาน, ช่องทาง, วิธีชำระ, สาขา, ยอดรวม, สถานะ
+
+## Phase 13: Performance Optimization
+- [ ] ถอด analytics scripts (Plausible/Amplitude) ออกจาก index.html
+- [ ] แก้ StaffLoginScreen เรียก posUsers.list ซ้ำ 2 ครั้ง → เรียกครั้งเดียว
+- [ ] เพิ่ม keep-alive endpoint + client-side ping ทุก 5 นาที เพื่อลด cold start

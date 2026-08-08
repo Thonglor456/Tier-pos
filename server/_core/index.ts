@@ -36,6 +36,10 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  // Keep-alive endpoint — pinged every 5 min by Heartbeat cron to prevent cold start
+  app.post("/api/scheduled/keepalive", (_req, res) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
   // tRPC API
   app.use(
     "/api/trpc",
