@@ -51,14 +51,16 @@
     --card-foreground: oklch(0.93 0.005 260);
     --popover: oklch(0.18 0.007 260);
     --popover-foreground: oklch(0.93 0.005 260);
-    --primary: oklch(0.92 0.005 260);
-    --primary-foreground: oklch(0.12 0.005 260);
+    /* Primary CTA — warm amber/gold on dark: high contrast (>7:1), clearly readable */
+    --primary: oklch(0.82 0.14 75);
+    --primary-foreground: oklch(0.10 0.005 260);
     --secondary: oklch(0.24 0.008 260);
     --secondary-foreground: oklch(0.88 0.005 260);
     --muted: oklch(0.22 0.007 260);
-    --muted-foreground: oklch(0.60 0.008 260);
-    --accent: oklch(0.78 0.005 260);
-    --accent-foreground: oklch(0.12 0.005 260);
+    /* Muted foreground — brighter so secondary text is readable on dark bg */
+    --muted-foreground: oklch(0.72 0.008 260);
+    --accent: oklch(0.82 0.14 75);
+    --accent-foreground: oklch(0.10 0.005 260);
     --destructive: oklch(0.55 0.22 25);
     --border: oklch(0.28 0.008 260);
     --input: oklch(0.22 0.007 260);

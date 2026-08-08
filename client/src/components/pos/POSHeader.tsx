@@ -27,8 +27,8 @@ function LiveClock() {
   );
 }
 
-const CHANNEL_COLORS: Record<string, string> = {
-  walkin: "oklch(0.75 0.005 260)",
+  const CHANNEL_COLORS: Record<string, string> = {
+  walkin: "oklch(0.82 0.14 75)",
   grab: "oklch(0.52 0.18 145)",
   lineman: "oklch(0.52 0.22 200)",
 };
