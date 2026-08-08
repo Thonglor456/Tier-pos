@@ -1,17 +1,24 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
+import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "เงินสด",
   transfer: "โอนธนาคาร",
   thai_chuay_thai: "ไทยช่วยไทย",
+};
+
+const PAYMENT_LABELS_EN: Record<string, string> = {
+  cash: "Cash",
+  transfer: "Bank Transfer",
+  thai_chuay_thai: "Thai Chuay Thai",
 };
 
 export default function ReportsScreen() {
@@ -25,9 +32,7 @@ export default function ReportsScreen() {
   const [filterBranch, setFilterBranch] = useState<number | "all">("all");
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
-
   const utils = trpc.useUtils();
-
   const startDateStr = useMemo(() => startOfDay(dateRange.from ?? today).toISOString(), [dateRange.from, today]);
   const endDateStr = useMemo(() => endOfDay(dateRange.to ?? dateRange.from ?? today).toISOString(), [dateRange.to, dateRange.from, today]);
   const summaryDate = useMemo(() => (dateRange.from ?? today).toISOString().slice(0, 10), [dateRange.from, today]);
@@ -116,6 +121,51 @@ export default function ReportsScreen() {
   const cancelledOrders = isMultiDay ? rangeCancelled : (summary?.cancelledCount ?? rangeCancelled);
   const filteredOrders = orders.filter((o) => filterPayment === "all" || o.paymentMethod === filterPayment);
 
+
+  const handleExportCSV = useCallback(() => {
+    if (filteredOrders.length === 0) {
+      toast.error("ไม่มีข้อมูลที่จะ Export");
+      return;
+    }
+    const exportHeaders = [
+      { key: "id", label: "เลขบิล" },
+      { key: "date", label: "วันที่" },
+      { key: "time", label: "เวลา" },
+      { key: "channel", label: "ช่องทางการขาย" },
+      { key: "payment", label: "วิธีชำระเงิน" },
+      { key: "staff", label: "พนักงาน" },
+      { key: "branch", label: "สาขา" },
+      { key: "total", label: "ยอดรวม (บาท)" },
+      { key: "status", label: "สถานะ" },
+      { key: "cancelReason", label: "เหตุผลยกเลิก" },
+    ];
+    const rows = filteredOrders.map((o) => {
+      const d = new Date(o.createdAt);
+      const staffName = staffList.find((s) => s.id === o.staffId)?.name ?? "-";
+      const chName = channels.find((c) => c.slug === o.salesChannel)?.name ?? (o.salesChannel ?? "-");
+      const branchName = branches.find((b) => b.id === o.branchId)?.name ?? "-";
+      return {
+        id: o.id,
+        date: d.toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" }),
+        time: d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+        channel: chName,
+        payment: PAYMENT_LABELS_EN[o.paymentMethod ?? "cash"] ?? (o.paymentMethod ?? "-"),
+        staff: staffName,
+        branch: branchName,
+        total: parseFloat(String(o.totalAmount)).toFixed(2),
+        status: o.status === "completed" ? "สำเร็จ" : "ยกเลิก",
+        cancelReason: (o as { cancelReason?: string }).cancelReason ?? "",
+      };
+    });
+    const csv = toCSV(rows, exportHeaders);
+    const fromStr = formatDateForFilename(dateRange.from ?? today);
+    const toStr = formatDateForFilename(dateRange.to ?? dateRange.from ?? today);
+    const filename = fromStr === toStr
+      ? `tier_coffee_report_${fromStr}.csv`
+      : `tier_coffee_report_${fromStr}_${toStr}.csv`;
+    downloadFile(csv, filename);
+    toast.success(`Export สำเร็จ: ${filteredOrders.length} รายการ`);
+  }, [filteredOrders, staffList, channels, branches, dateRange, today]);
   const setPreset = (from: Date, to: Date) => {
     setDateRange({ from, to });
     setCalOpen(false);
@@ -183,7 +233,15 @@ export default function ReportsScreen() {
         </Link>
         <div className="h-5 w-px bg-border" />
         <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4 text-muted-foreground" />
+            <span className="hidden sm:inline text-xs">Export CSV</span>
+          </button>
           <Popover open={calOpen} onOpenChange={setCalOpen}>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors min-w-[160px] justify-between">

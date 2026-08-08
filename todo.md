@@ -109,3 +109,9 @@
 - [x] UI: DashboardScreen.tsx — KPI cards, top products table, revenue bar chart, recent orders
 - [x] UI: เพิ่มปุ่มเข้า Dashboard ใน POSHeader
 - [x] Route: /dashboard ใน App.tsx
+
+## Phase 12: Export CSV/Excel
+- [ ] สร้าง export utility (client/src/lib/exportUtils.ts) — แปลงข้อมูลเป็น CSV string และ trigger download
+- [ ] ReportsScreen: เพิ่มปุ่ม Export CSV ใน toolbar (ส่งออกรายการบิลในช่วงวันที่ที่เลือก)
+- [ ] DashboardScreen: เพิ่มปุ่ม Export CSV สำหรับ top items และ recent orders
+- [ ] Export ครอบคลุมข้อมูล: เลขบิล, วันที่/เวลา, พนักงาน, ช่องทาง, วิธีชำระ, สาขา, ยอดรวม, สถานะ

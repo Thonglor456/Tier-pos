@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -10,6 +10,9 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
+import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return n.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -64,6 +67,59 @@ export default function DashboardScreen() {
     bank_transfer: "โอนธนาคาร",
     thai_chuay_thai: "ไทยช่วยไทย",
   };
+
+  const handleExportTopItems = useCallback(() => {
+    if (!topItems || topItems.length === 0) {
+      toast.error("ไม่มีข้อมูลสินค้าขายดีที่จะ Export");
+      return;
+    }
+    const headers = [
+      { key: "rank", label: "อันดับ" },
+      { key: "itemName", label: "ชื่อสินค้า" },
+      { key: "totalQty", label: "จำนวน (แก้ว)" },
+      { key: "totalRevenue", label: "ยอดรวม (บาท)" },
+    ];
+    const rows = (topItems as TopItem[]).map((item, idx) => ({
+      rank: idx + 1,
+      itemName: item.itemName,
+      totalQty: item.totalQty,
+      totalRevenue: item.totalRevenue.toFixed(2),
+    }));
+    const csv = toCSV(rows, headers);
+    const todayDate = new Date();
+    const dateStr = formatDateForFilename(todayDate);
+    const periodLabel = topPeriod === "day" ? "today" : "month";
+    downloadFile(csv, `tier_coffee_top_items_${periodLabel}_${dateStr}.csv`);
+    toast.success(`Export สินค้าขายดี ${topItems.length} รายการ`);
+  }, [topItems, topPeriod]);
+
+  const handleExportRecentOrders = useCallback(() => {
+    if (!recentOrders || recentOrders.length === 0) {
+      toast.error("ไม่มีบิลที่จะ Export");
+      return;
+    }
+    const headers = [
+      { key: "id", label: "เลขบิล" },
+      { key: "time", label: "เวลา" },
+      { key: "channel", label: "ช่องทาง" },
+      { key: "payment", label: "วิธีชำระ" },
+      { key: "total", label: "ยอดรวม (บาท)" },
+      { key: "status", label: "สถานะ" },
+    ];
+    const rows = (recentOrders as RecentOrder[]).map((o) => ({
+      id: o.id,
+      time: new Date(o.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+      channel: o.salesChannel,
+      payment: paymentLabel[o.paymentMethod] ?? o.paymentMethod,
+      total: parseFloat(String(o.totalAmount)).toFixed(2),
+      status: o.status === "completed" ? "สำเร็จ" : "ยกเลิก",
+    }));
+    const csv = toCSV(rows, headers);
+    const todayDate = new Date();
+    const dateStr = formatDateForFilename(todayDate);
+    downloadFile(csv, `tier_coffee_recent_orders_${dateStr}.csv`);
+    toast.success(`Export บิลล่าสุด ${recentOrders.length} รายการ`);
+  }, [recentOrders, paymentLabel]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -197,6 +253,13 @@ export default function DashboardScreen() {
                   เดือนนี้
                 </button>
               </div>
+              <button
+                onClick={handleExportTopItems}
+                className="p-1.5 rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Export สินค้าขายดี"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
             </div>
             {loadingTop ? (
               <div className="space-y-2">
@@ -240,7 +303,16 @@ export default function DashboardScreen() {
 
         {/* Recent Orders */}
         <div className="bg-card rounded-xl p-5 border border-border">
-          <h2 className="font-semibold text-sm mb-4">บิลล่าสุด</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-sm">บิลล่าสุด</h2>
+            <button
+              onClick={handleExportRecentOrders}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-muted-foreground text-xs hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
           {!recentOrders || recentOrders.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">ยังไม่มีบิล</div>
           ) : (
