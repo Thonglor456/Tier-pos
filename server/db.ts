@@ -507,3 +507,102 @@ export async function cancelOrderDirect(orderId: number, cancelReason: string) {
     cancelledAt: new Date(),
   }).where(eq(orders.id, orderId));
 }
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+export async function getDashboardTodaySummary() {
+  const db = await getDb();
+  if (!db) return { revenue: 0, orders: 0, avgOrderValue: 0, cancelled: 0, completed: 0 };
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const rows = await db.select().from(orders).where(and(gte(orders.createdAt, startOfDay), lte(orders.createdAt, endOfDay)));
+  const completed = rows.filter((r) => r.status === "completed");
+  const cancelled = rows.filter((r) => r.status === "cancelled");
+  const revenue = completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0);
+  return {
+    revenue,
+    orders: rows.length,
+    completed: completed.length,
+    cancelled: cancelled.length,
+    avgOrderValue: completed.length > 0 ? revenue / completed.length : 0,
+  };
+}
+
+export async function getDashboardTopItems(period: "day" | "month", limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  let from: Date;
+  if (period === "day") {
+    from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  } else {
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  }
+  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  // Get completed order IDs in range
+  const completedOrders = await db.select({ id: orders.id }).from(orders)
+    .where(and(gte(orders.createdAt, from), lte(orders.createdAt, to), eq(orders.status, "completed")));
+  if (completedOrders.length === 0) return [];
+  const orderIds = completedOrders.map((o) => o.id);
+  // Aggregate order items by itemId
+  const allItems = await db.select({
+    itemId: orderItems.itemId,
+    itemName: orderItems.itemName,
+    quantity: orderItems.quantity,
+    totalPrice: orderItems.totalPrice,
+  }).from(orderItems).where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
+  const map: Record<number, { itemId: number; itemName: string; totalQty: number; totalRevenue: number }> = {};
+  for (const row of allItems) {
+    if (!map[row.itemId]) map[row.itemId] = { itemId: row.itemId, itemName: row.itemName, totalQty: 0, totalRevenue: 0 };
+    map[row.itemId]!.totalQty += row.quantity;
+    map[row.itemId]!.totalRevenue += parseFloat(String(row.totalPrice));
+  }
+  return Object.values(map).sort((a, b) => b.totalQty - a.totalQty).slice(0, limit);
+}
+
+export async function getDashboardWeeklyRevenue() {
+  const db = await getDb();
+  if (!db) return [];
+  const result: { date: string; revenue: number; orders: number }[] = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
+    const dEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 23, 59, 59, 999);
+    const rows = await db.select({ totalAmount: orders.totalAmount, status: orders.status })
+      .from(orders).where(and(gte(orders.createdAt, d), lte(orders.createdAt, dEnd)));
+    const completed = rows.filter((r) => r.status === "completed");
+    result.push({
+      date: d.toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short" }),
+      revenue: completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0),
+      orders: completed.length,
+    });
+  }
+  return result;
+}
+
+export async function getDashboardMonthlyRevenue() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const result: { day: number; revenue: number; orders: number }[] = [];
+  for (let day = 1; day <= Math.min(daysInMonth, now.getDate()); day++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), day, 0, 0, 0, 0);
+    const dEnd = new Date(now.getFullYear(), now.getMonth(), day, 23, 59, 59, 999);
+    const rows = await db.select({ totalAmount: orders.totalAmount, status: orders.status })
+      .from(orders).where(and(gte(orders.createdAt, d), lte(orders.createdAt, dEnd)));
+    const completed = rows.filter((r) => r.status === "completed");
+    result.push({
+      day,
+      revenue: completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0),
+      orders: completed.length,
+    });
+  }
+  return result;
+}
+
+export async function getDashboardRecentOrders(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+}

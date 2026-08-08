@@ -4,6 +4,7 @@ import {
   cancelOrder,
   cancelOrderDirect,
   createOrder,
+  deleteBranch,
   deletePosUser,
   deleteSalesChannel,
   deleteModifierGroup,
@@ -11,8 +12,14 @@ import {
   getAllCategoriesAdmin,
   getAllItemsAdmin,
   getAllSalesChannels,
+  getBranches,
   getCategories,
   getDailySummary,
+  getDashboardMonthlyRevenue,
+  getDashboardRecentOrders,
+  getDashboardTodaySummary,
+  getDashboardTopItems,
+  getDashboardWeeklyRevenue,
   getItemsWithVariantsAndModifiers,
   getModifierGroupsWithOptions,
   getOrderWithItems,
@@ -22,6 +29,7 @@ import {
   getStoreSettings,
   toggleItemActive,
   updateStoreSettings,
+  upsertBranch,
   upsertCategory,
   upsertItem,
   upsertModifierGroup,
@@ -32,7 +40,8 @@ import {
   verifyStaffPin,
 } from "./db";
 import { getSessionCookieOptions as _getCookieOpts } from "./_core/cookies";
-import { getBranches, upsertBranch, deleteBranch } from "./db";
+
+
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
@@ -228,6 +237,18 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteBranch(input.id)),
   }),
-});
+  // u2500u2500u2500 Dashboard u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+  dashboard: router({
+    todaySummary: publicProcedure.query(() => getDashboardTodaySummary()),
+    topItems: publicProcedure
+      .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
+      .query(({ input }) => getDashboardTopItems(input.period, input.limit)),
+    weeklyRevenue: publicProcedure.query(() => getDashboardWeeklyRevenue()),
+    monthlyRevenue: publicProcedure.query(() => getDashboardMonthlyRevenue()),
+    recentOrders: publicProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(({ input }) => getDashboardRecentOrders(input.limit)),
+  }),
 
+});
 export type AppRouter = typeof appRouter;

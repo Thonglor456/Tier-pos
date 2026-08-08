@@ -98,3 +98,14 @@
 - [x] เพิ่ม Date Range Picker ในหน้ารายงาน (เลือกช่วงวันที่แบบลากได้)
 - [x] อัปเดต orders.list query ให้รับ startDate/endDate จาก range picker
 - [x] อัปเดต summary cards ให้ใช้ข้อมูลจาก range ที่เลือก
+- [x] อัปเดต summary cards ให้ใช้ข้อมูลจาก range ที่เลือก
+
+## Phase 11: Manager Dashboard
+- [x] Backend: dashboard.todaySummary — KPI วันนี้ (revenue, orders, avg order value, cancelled)
+- [x] Backend: dashboard.topItems — สินค้าขายดีรายวัน/รายเดือน (item name, qty, revenue)
+- [x] Backend: dashboard.weeklyRevenue — ยอดขาย 7 วันย้อนหลัง (bar chart data)
+- [x] Backend: dashboard.monthlyRevenue — ยอดขายรายวันในเดือนนี้
+- [x] Backend: dashboard.recentOrders — 10 บิลล่าสุด
+- [x] UI: DashboardScreen.tsx — KPI cards, top products table, revenue bar chart, recent orders
+- [x] UI: เพิ่มปุ่มเข้า Dashboard ใน POSHeader
+- [x] Route: /dashboard ใน App.tsx

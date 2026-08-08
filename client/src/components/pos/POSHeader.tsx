@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, ShoppingCart, LogOut, MapPin } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
 import { useBranch } from "@/contexts/BranchContext";
 
@@ -80,6 +80,12 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
             <span className="text-xs text-muted-foreground hidden md:block">{currentStaff.name}</span>
           </div>
         )}
+        <Link href="/dashboard">
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <LayoutDashboard className="w-4 h-4" />
+            <span className="hidden md:block">Dashboard</span>
+          </button>
+        </Link>
         <Link href="/reports">
           <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <BarChart2 className="w-4 h-4" />

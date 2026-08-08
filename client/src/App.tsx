@@ -11,6 +11,7 @@ import POSScreen from "./pages/POSScreen";
 import AdminScreen from "./pages/AdminScreen";
 import ReportsScreen from "./pages/ReportsScreen";
 import SettingsScreen from "./pages/SettingsScreen";
+import DashboardScreen from "./pages/DashboardScreen";
 
 function AppRoutes() {
   const { currentStaff } = useStaff();
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Route path="/admin" component={AdminScreen} />
       <Route path="/reports" component={ReportsScreen} />
       <Route path="/settings" component={SettingsScreen} />
+      <Route path="/dashboard" component={DashboardScreen} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
