@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { useLocation } from "wouter";
+import { Link } from "wouter";
 import {
   BarChart,
   Bar,
@@ -10,6 +12,7 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
+import { Button } from "@/components/ui/button";
 import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
@@ -39,8 +42,22 @@ type RecentOrder = {
 
 export default function DashboardScreen() {
   const { currentStaff } = useStaff();
+  const [, navigate] = useLocation();
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("week");
   const [topPeriod, setTopPeriod] = useState<TopPeriod>("day");
+
+  // Guard: only manager can access dashboard
+  if (currentStaff?.role !== "manager") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <Button onClick={() => navigate("/")} className="mt-4 bg-primary text-white">กลับหน้าขาย</Button>
+        </div>
+      </div>
+    );
+  }
 
   const { data: summary, isLoading: loadingSummary } = trpc.dashboard.todaySummary.useQuery(undefined, {
     refetchInterval: 30000,
@@ -67,6 +84,10 @@ export default function DashboardScreen() {
     bank_transfer: "โอนธนาคาร",
     thai_chuay_thai: "ไทยช่วยไทย",
   };
+  const { data: channels = [] } = trpc.channels.list.useQuery();
+  function channelLabel(slug: string): string {
+    return channels.find((c) => c.slug === slug)?.name ?? slug;
+  }
 
   const handleExportTopItems = useCallback(() => {
     if (!topItems || topItems.length === 0) {
@@ -335,7 +356,7 @@ export default function DashboardScreen() {
                       <td className="py-2 text-xs">
                         {new Date(order.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="py-2 text-xs">{order.salesChannel}</td>
+                      <td className="py-2 text-xs">{channelLabel(order.salesChannel)}</td>
                       <td className="py-2 text-xs">{paymentLabel[order.paymentMethod] ?? order.paymentMethod}</td>
                       <td className="py-2 font-medium text-right">{fmtB(parseFloat(String(order.totalAmount)))}</td>
                       <td className="py-2 text-center">

@@ -117,6 +117,13 @@
 - [x] Export ครอบคลุมข้อมูล: เลขบิล, วันที่/เวลา, พนักงาน, ช่องทาง, วิธีชำระ, สาขา, ยอดรวม, สถานะ
 
 ## Phase 13: Performance Optimization
-- [ ] ถอด analytics scripts (Plausible/Amplitude) ออกจาก index.html
-- [ ] แก้ StaffLoginScreen เรียก posUsers.list ซ้ำ 2 ครั้ง → เรียกครั้งเดียว
-- [ ] เพิ่ม keep-alive endpoint + client-side ping ทุก 5 นาที เพื่อลด cold start
+- [x] ถอด analytics scripts (Umami) ออกจาก index.html
+- [x] แก้ StaffLoginScreen เรียก posUsers.list ซ้ำ 2 ครั้ง (ยืนยัน: เป็น Vite HMR dev artifact เท่านั้น production ไม่มีปัญหา)
+- [x] เพิ่ม /api/scheduled/keepalive endpoint + Heartbeat cron ทุก 5 นาที (task_uid: GWybd6pjAm9xEujdHbRD4B)
+
+## Phase 14: Bug Fixes
+- [ ] Security: เพิ่ม manager-only guard ใน AdminScreen, ReportsScreen, DashboardScreen
+- [ ] UX: เพิ่ม toast แจ้งเตือน "กรุณาเลือกตัวเลือกที่จำเป็นให้ครบ" ใน ModifierModal
+- [ ] UX: เพิ่ม toast แจ้งเตือน "จำนวนเงินที่รับไม่พอ" ใน PaymentModal (cash)
+- [ ] i18n: แปลค่า walkin/transfer/grab/lineman เป็นภาษาไทยใน DashboardScreen
+- [ ] UX: เปลี่ยน window.confirm ลบพนักงานเป็น custom AlertDialog ใน AdminScreen

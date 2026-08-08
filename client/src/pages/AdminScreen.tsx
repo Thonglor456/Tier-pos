@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Pencil, Trash2, ShieldCheck, User, Settings, Coffee, Tag, Layers } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ItemFormModal from "@/components/admin/ItemFormModal";
 import CategoryFormModal from "@/components/admin/CategoryFormModal";
 import StaffFormModal from "@/components/admin/StaffFormModal";
@@ -21,11 +25,27 @@ export default function AdminScreen() {
   const [editItemId, setEditItemId] = useState<number | null | "new">(null);
   const [editCategoryId, setEditCategoryId] = useState<number | null | "new">(null);
   const [editStaffId, setEditStaffId] = useState<number | null | "new">(null);
+  const [deleteStaffId, setDeleteStaffId] = useState<number | null>(null);
 
   const { data: items = [], refetch: refetchItems } = trpc.admin.items.useQuery();
   const { data: categories = [], refetch: refetchCategories } = trpc.admin.categories.useQuery();
   const { data: modifierGroups = [] } = trpc.admin.modifierGroups.useQuery();
   const { data: staffList = [], refetch: refetchStaff } = trpc.posUsers.list.useQuery();
+
+  const deleteStaffTarget = staffList.find((s) => s.id === deleteStaffId);
+
+  // Guard: only manager can access admin
+  if (currentStaff?.role !== "manager") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <Link href="/"><Button className="mt-4">กลับหน้าขาย</Button></Link>
+        </div>
+      </div>
+    );
+  }
 
   const toggleItem = trpc.admin.toggleItem.useMutation({
     onSuccess: () => refetchItems(),
@@ -196,7 +216,7 @@ export default function AdminScreen() {
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => { if (confirm(`ลบ ${staff.name}?`)) deleteStaff.mutate({ id: staff.id }); }}
+                        onClick={() => setDeleteStaffId(staff.id)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -231,13 +251,38 @@ export default function AdminScreen() {
           onSaved={() => { setEditCategoryId(null); refetchCategories(); }}
         />
       )}
-      {editStaffId !== null && (
+  {editStaffId !== null && (
         <StaffFormModal
           staffId={editStaffId === "new" ? undefined : editStaffId}
           onClose={() => setEditStaffId(null)}
           onSaved={() => { setEditStaffId(null); refetchStaff(); }}
         />
       )}
+      <AlertDialog open={deleteStaffId !== null} onOpenChange={(open) => { if (!open) setDeleteStaffId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ยืนยันการลบพนักงาน</AlertDialogTitle>
+            <AlertDialogDescription>
+              ต้องการลบ <strong>{deleteStaffTarget?.name}</strong> ออกจากระบบ?
+              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteStaffId !== null) {
+                  deleteStaff.mutate({ id: deleteStaffId });
+                  setDeleteStaffId(null);
+                }
+              }}
+            >
+              ลบพนักงาน
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

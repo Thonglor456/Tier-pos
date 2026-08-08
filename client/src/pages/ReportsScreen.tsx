@@ -1,8 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useStaff } from "@/contexts/StaffContext";
+import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, startOfDay, endOfDay } from "date-fns";
@@ -23,7 +26,23 @@ const PAYMENT_LABELS_EN: Record<string, string> = {
 
 export default function ReportsScreen() {
   const today = useMemo(() => new Date(), []);
+  const { currentStaff } = useStaff();
+  const [, navigate] = useLocation();
   const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: new Date(), to: new Date() }));
+
+  // Guard: only manager can access reports
+  if (currentStaff?.role !== "manager") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <Button onClick={() => navigate("/")} className="mt-4 bg-primary text-white">กลับหน้าขาย</Button>
+        </div>
+      </div>
+    );
+  }
+
   const [calOpen, setCalOpen] = useState(false);
   const [filterChannel, setFilterChannel] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");

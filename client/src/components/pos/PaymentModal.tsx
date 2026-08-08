@@ -45,6 +45,10 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
   }, [cashInput]);
 
   const handlePay = useCallback(() => {
+    if (method === "cash" && cashReceived < total) {
+      toast.error("จำนวนเงินที่รับไม่พอกับยอดที่ต้องชำระ");
+      return;
+    }
       createOrder.mutate({
       salesChannel: channelSlug,
       paymentMethod: method,

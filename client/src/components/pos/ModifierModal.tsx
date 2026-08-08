@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import type { CartModifier } from "@/types/pos";
 
 type Variant = { id: number; name: string; priceWalkin: string | number; priceGrab: string | number; priceLineman?: string | number | null };
@@ -59,7 +60,17 @@ export default function ModifierModal({ item, modifierGroups, channelSlug, onCon
   }
 
   function handleConfirm() {
-    if (!selectedVariantId) return;
+    if (!selectedVariantId) {
+      toast.error("กรุณาเลือกขนาด / ประเภทก่อน");
+      return;
+    }
+    const missingGroups = modifierGroups.filter(
+      (g) => g.isRequired && (selectedOptions[g.id]?.length ?? 0) < g.minSelect
+    );
+    if (missingGroups.length > 0) {
+      toast.error(`กรุณาเลือก "${missingGroups[0]!.name}" ให้ครบก่อน`);
+      return;
+    }
     const modifiers: CartModifier[] = [];
     for (const g of modifierGroups) {
       const selected = selectedOptions[g.id] ?? [];
@@ -161,4 +172,3 @@ export default function ModifierModal({ item, modifierGroups, channelSlug, onCon
     </div>
   );
 }
-
