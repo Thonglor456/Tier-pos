@@ -40,5 +40,11 @@
 - [x] Vitest: order creation and cancellation tests
 - [x] Vitest: PIN verification tests
 - [x] Mobile/tablet responsive polish
-- [ ] Checkpoint & deploy
 - [x] Checkpoint & deploy
+
+## Phase 6: UI Enhancement (reference match)
+- [x] Header with live clock and date display
+- [x] Product cards with real food photography images
+- [x] Upload 15 product images to webdev static storage
+- [x] Update ProductGrid with correct image paths
+- [x] Redesign OrderPanel with summary rows matching reference

@@ -21,46 +21,91 @@ function getDisplayPrice(item: ItemWithVariants, channel: SalesChannel): string 
   );
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  if (min === max) return `฿${min}`;
-  return `฿${min}–${max}`;
+  if (min === max) return `${min}.-`;
+  return `${min}–${max}.-`;
 }
 
-const COFFEE_EMOJIS: Record<string, string> = {
-  "คาปูชิโน่": "☕", "อเมริกาโน่": "☕", "ลาเต้": "☕", "มอคค่า": "☕",
-  "เอสเปรสโซ่ช็อต": "☕", "เอสเย็น": "🧊", "คาราเมลมัคคิอาโต้": "☕",
-  "ชาไทย": "🍵", "ชาเขียว": "🍵", "ชาดำเย็น": "🍵", "ชาพีช": "🍑",
-  "ชามะนาว": "🍋", "มัทฉะ": "🍵", "นม": "🥛", "โกโก้": "🍫",
-  "อิตาเลี่ยนโซดา": "🥤", "เซ็ต": "🎁",
+// Map item names to product images
+const PRODUCT_IMAGES: Record<string, string> = {
+  "คาปูชิโน่": "/manus-storage/coffee_cappuccino_3ae2e86c.png",
+  "อเมริกาโน่": "/manus-storage/coffee_americano_22eaaef9.png",
+  "ลาเต้": "/manus-storage/coffee_latte_916025fb.png",
+  "มอคค่า": "/manus-storage/coffee_mocha_8b5790fe.png",
+  "ชาไทย": "/manus-storage/tea_thai_58a7f206.png",
+  "ชาเขียว": "/manus-storage/tea_green_770d44e2.png",
+  "คาราเมลมัคคิอาโต้": "/manus-storage/coffee_caramel_133106fb.png",
+  "เอสเปรสโซ่ช็อต": "/manus-storage/coffee_espresso_340af496.png",
+  "เอสเย็น": "/manus-storage/coffee_espresso_340af496.png",
+  "มัทฉะน้ำมะพร้าวสด": "/manus-storage/matcha_latte_e8106a6a.png",
+  "มัทฉะลาเต้": "/manus-storage/matcha_latte_e8106a6a.png",
+  "มัทฉะลาเต้สตรอว์เบอร์รี่": "/manus-storage/matcha_latte_e8106a6a.png",
+  "มัทฉะส้ม": "/manus-storage/matcha_latte_e8106a6a.png",
+  "เพียวมัทฉะ": "/manus-storage/matcha_latte_e8106a6a.png",
+  "มัทฉะน้ำมะนาว": "/manus-storage/matcha_latte_e8106a6a.png",
+  "นม": "/manus-storage/milk_plain_62845f54.png",
+  "นมคาราเมล": "/manus-storage/milk_plain_62845f54.png",
+  "นมชมพู": "/manus-storage/milk_plain_62845f54.png",
+  "นมน้ำผึ้ง": "/manus-storage/milk_plain_62845f54.png",
+  "นมวานิลลา": "/manus-storage/milk_plain_62845f54.png",
+  "นมสตรอว์เบอร์รี่": "/manus-storage/milk_plain_62845f54.png",
+  "โกโก้": "/manus-storage/milk_plain_62845f54.png",
+  "น้ำผึ้งมะนาวโซดา": "/manus-storage/soda_lemon_e5ece73d.png",
+  "สตรอว์เบอร์รีโซดา": "/manus-storage/soda_strawberry_58fccec3.png",
+  "แดงโซดามะนาว": "/manus-storage/soda_lemon_e5ece73d.png",
+  "เทียร์คอฟฟี่": "/manus-storage/coffee_tier_c1235dee.png",
+  "ดับเบิ้ลชาเขียวอร่อยมาก": "/manus-storage/tea_green_770d44e2.png",
+  "ดับเบิ้ลโน่": "/manus-storage/coffee_cold_brew_0c4e0e6f.png",
+  "วานิลลาคอฟฟี่": "/manus-storage/coffee_latte_916025fb.png",
+  "กาแฟช่อดอกมะพร้าว": "/manus-storage/coffee_cappuccino_3ae2e86c.png",
+  "ชาดำเย็น": "/manus-storage/tea_thai_58a7f206.png",
+  "ชาพีช": "/manus-storage/tea_thai_58a7f206.png",
+  "ชามะนาว": "/manus-storage/soda_lemon_e5ece73d.png",
+  "ชาเขียวน้ำผึ้งมะนาว": "/manus-storage/tea_green_770d44e2.png",
 };
 
-function getEmoji(name: string): string {
-  for (const [key, emoji] of Object.entries(COFFEE_EMOJIS)) {
-    if (name.includes(key)) return emoji;
+function getProductImage(name: string): string {
+  // Exact match first
+  if (PRODUCT_IMAGES[name]) return PRODUCT_IMAGES[name];
+  // Partial match
+  for (const [key, url] of Object.entries(PRODUCT_IMAGES)) {
+    if (name.includes(key) || key.includes(name)) return url;
   }
-  return "🥤";
+  // Category fallbacks
+  if (name.includes("ชา")) return "/manus-storage/tea_thai_58a7f206.png";
+  if (name.includes("มัทฉะ")) return "/manus-storage/matcha_latte_e8106a6a.png";
+  if (name.includes("นม")) return "/manus-storage/milk_plain_62845f54.png";
+  if (name.includes("โซดา") || name.includes("มะนาว")) return "/manus-storage/soda_lemon_e5ece73d.png";
+  if (name.includes("เซ็ต") || name.includes("โปรโมชั่น")) return "/manus-storage/set_combo_3be21741.png";
+  return "/manus-storage/coffee_cappuccino_3ae2e86c.png";
 }
 
 export default function ProductGrid({ items, channel, onPress }: Props) {
   const activeItems = items.filter((i) => i.isActive);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+    <div className="flex-1 overflow-y-auto p-3">
+      <div className="grid grid-cols-3 lg:grid-cols-4 gap-3">
         {activeItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onPress(item.id)}
-            className="pos-card flex flex-col items-center gap-2 p-3 text-center hover:shadow-md hover:border-primary/40 active:scale-95 transition-all duration-150 cursor-pointer"
+            className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md hover:border-primary/30 active:scale-95 transition-all duration-150 cursor-pointer text-left"
           >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shrink-0"
-              style={{ background: "oklch(0.93 0.015 75)" }}
-            >
-              {getEmoji(item.name)}
+            {/* Product Image */}
+            <div className="relative w-full aspect-square overflow-hidden bg-muted">
+              <img
+                src={getProductImage(item.name)}
+                alt={item.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/manus-storage/coffee_cappuccino_904c2a3c.png";
+                }}
+              />
             </div>
-            <div className="w-full">
-              <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">{item.name}</p>
-              <p className="text-xs font-semibold mt-1" style={{ color: "oklch(0.55 0.1 55)" }}>
+            {/* Product Info */}
+            <div className="p-2.5 flex flex-col gap-0.5">
+              <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">{item.name}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color: "oklch(0.38 0.08 50)" }}>
                 {getDisplayPrice(item, channel)}
               </p>
             </div>
@@ -75,4 +120,3 @@ export default function ProductGrid({ items, channel, onPress }: Props) {
     </div>
   );
 }
-
