@@ -69,3 +69,9 @@
 - [x] UI: Reports — staff sales summary filter
 - [x] UI: Reports — payment method breakdown
 - [x] Vitest: staff PIN and role tests (10 tests passing)
+- [x] Vitest: staff PIN and role tests (10 tests passing)
+
+## Phase 8: Bug Fixes
+- [x] Fix: getOrders endDate ตีความเป็น 00:00:00 ทำให้บิลหายในหน้ารายงาน
+- [x] Fix: ReportsScreen ส่ง endDate ให้ครอบคลุมสิ้นวัน 23:59:59.999
+- [x] Verify: ปุ่มยกเลิกบิลในหน้ารายงาน — popup ยืนยัน ไม่ต้อง PIN, เปลี่ยนสถานะเป็น cancelled ไม่ลบ

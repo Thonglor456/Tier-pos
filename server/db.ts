@@ -212,14 +212,20 @@ export async function getOrderWithItems(orderId: number) {
   return { ...order, items: oiWithMods };
 }
 
-export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: string; status?: "completed" | "cancelled"; limit?: number; offset?: number }) {
+export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: string; status?: "completed" | "cancelled"; staffId?: number; limit?: number; offset?: number }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
   if (opts.startDate) conditions.push(gte(orders.createdAt, opts.startDate));
-  if (opts.endDate) conditions.push(lte(orders.createdAt, opts.endDate));
+  if (opts.endDate) {
+    // Extend endDate to end-of-day (23:59:59.999) so all orders on that day are included
+    const endOfDay = new Date(opts.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    conditions.push(lte(orders.createdAt, endOfDay));
+  }
   if (opts.channel) conditions.push(eq(orders.salesChannel, opts.channel));
   if (opts.status) conditions.push(eq(orders.status, opts.status));
+  if (opts.staffId) conditions.push(eq(orders.staffId, opts.staffId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
 }
@@ -463,4 +469,14 @@ export async function deleteModifierOption(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(modifierOptions).where(eq(modifierOptions.id, id));
+}
+export async function cancelOrderDirect(orderId: number, cancelReason: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(orders).set({
+    status: "cancelled",
+    cancelledBy: "พนักงาน",
+    cancelReason,
+    cancelledAt: new Date(),
+  }).where(eq(orders.id, orderId));
 }

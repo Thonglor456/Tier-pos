@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "เงินสด",
@@ -15,18 +16,45 @@ export default function ReportsScreen() {
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "cancelled">("all");
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const utils = trpc.useUtils();
+  // Fix: endDate must be end-of-day so all orders on the selected date are included
+  const endDateStr = useMemo(() => `${selectedDate}T23:59:59.999`, [selectedDate]);
 
   const { data: summary } = trpc.orders.dailySummary.useQuery({ date: selectedDate });
   const { data: channels = [] } = trpc.channels.list.useQuery();
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
   const { data: orders = [] } = trpc.orders.list.useQuery({
-    startDate: selectedDate,
-    endDate: selectedDate,
+    startDate: `${selectedDate}T00:00:00.000`,
+    endDate: endDateStr,
     channel: filterChannel !== "all" ? filterChannel : undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
     staffId: filterStaff !== "all" ? filterStaff : undefined,
     limit: 200,
   });
+
+  const cancelMutation = trpc.orders.cancelDirect.useMutation({
+    onSuccess: () => {
+      toast.success("ยกเลิกบิลสำเร็จ");
+      setCancelConfirmId(null);
+      setCancelReason("");
+      utils.orders.list.invalidate();
+      utils.orders.dailySummary.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleCancelClick = useCallback((orderId: number) => {
+    setCancelConfirmId(orderId);
+    setCancelReason("");
+  }, []);
+
+  const handleConfirmCancel = useCallback(() => {
+    if (cancelConfirmId === null) return;
+    cancelMutation.mutate({ orderId: cancelConfirmId, cancelReason: cancelReason || "ยกเลิกโดยพนักงาน" });
+  }, [cancelConfirmId, cancelReason, cancelMutation]);
 
   const paymentBreakdown = useMemo(() => {
     const map: Record<string, { count: number; total: number }> = {};
@@ -69,11 +97,53 @@ export default function ReportsScreen() {
   const totalOrders = (summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0);
   const completedOrders = summary?.completedCount ?? 0;
   const cancelledOrders = summary?.cancelledCount ?? 0;
-
   const filteredOrders = orders.filter((o) => filterPayment === "all" || o.paymentMethod === filterPayment);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Cancel Confirm Dialog */}
+      {cancelConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">ยืนยันการยกเลิกบิล</h3>
+                <p className="text-xs text-muted-foreground">บิล #{cancelConfirmId}</p>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="text-xs font-medium text-foreground mb-1.5 block">เหตุผล (ไม่บังคับ)</label>
+              <input
+                type="text"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="เช่น ลูกค้าเปลี่ยนใจ"
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-400/40"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setCancelConfirmId(null); setCancelReason(""); }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+              >
+                ไม่ยกเลิก
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelMutation.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {cancelMutation.isPending ? "กำลังยกเลิก..." : "ยืนยันยกเลิก"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="flex items-center gap-4 px-5 py-3 bg-card border-b border-border shadow-sm shrink-0">
         <Link href="/">
           <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -124,7 +194,11 @@ export default function ReportsScreen() {
             <div className="space-y-2">
               {(["cash", "transfer", "thai_chuay_thai"] as const).map((pm) => {
                 const d = paymentBreakdown[pm] ?? { count: 0, total: 0 };
-                const icons: Record<string, React.ReactNode> = { cash: <Banknote className="w-3.5 h-3.5" />, transfer: <Smartphone className="w-3.5 h-3.5" />, thai_chuay_thai: <Heart className="w-3.5 h-3.5" /> };
+                const icons: Record<string, React.ReactNode> = {
+                  cash: <Banknote className="w-3.5 h-3.5" />,
+                  transfer: <Smartphone className="w-3.5 h-3.5" />,
+                  thai_chuay_thai: <Heart className="w-3.5 h-3.5" />,
+                };
                 return (
                   <div key={pm} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
                     <div className="flex items-center gap-2 text-sm text-foreground">
@@ -217,7 +291,7 @@ export default function ReportsScreen() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {["เวลา", "บิล #", "ช่องทาง", "วิธีชำระ", "พนักงาน", "ยอด", "สถานะ"].map((h) => (
+                  {["เวลา", "บิล #", "ช่องทาง", "วิธีชำระ", "พนักงาน", "ยอด", "สถานะ", ""].map((h) => (
                     <th key={h} className={`px-4 py-2.5 text-xs font-semibold text-muted-foreground ${h === "ยอด" ? "text-right" : h === "สถานะ" ? "text-center" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
@@ -241,11 +315,22 @@ export default function ReportsScreen() {
                           {order.status === "completed" ? "สำเร็จ" : "ยกเลิก"}
                         </span>
                       </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {order.status === "completed" && (
+                          <button
+                            onClick={() => handleCancelClick(order.id)}
+                            className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                            title="ยกเลิกบิล"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {filteredOrders.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">ไม่มีรายการในวันที่เลือก</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">ไม่มีรายการในวันที่เลือก</td></tr>
                 )}
               </tbody>
             </table>

@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { z } from "zod";
 import {
   cancelOrder,
+  cancelOrderDirect,
   createOrder,
   deletePosUser,
   deleteSalesChannel,
@@ -90,6 +91,12 @@ export const appRouter = router({
         const manager = await verifyManagerPin(input.pin);
         if (!manager) throw new Error("PIN ไม่ถูกต้อง หรือไม่มีสิทธิ์ผู้จัดการ");
         await cancelOrder(input.orderId, manager.name, input.cancelReason);
+        return { success: true };
+      }),
+    cancelDirect: publicProcedure
+      .input(z.object({ orderId: z.number(), cancelReason: z.string() }))
+      .mutation(async ({ input }) => {
+        await cancelOrderDirect(input.orderId, input.cancelReason);
         return { success: true };
       }),
 
