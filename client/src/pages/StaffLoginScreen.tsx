@@ -2,8 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
 import { toast } from "sonner";
-import { Delete } from "lucide-react";
-import { MapPin } from "lucide-react";
+import { Delete, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBranch } from "@/contexts/BranchContext";
 
@@ -31,11 +30,6 @@ export default function StaffLoginScreen() {
     setError("");
   };
 
-  const handleClear = () => {
-    setPin("");
-    setError("");
-  };
-
   const handleConfirm = async () => {
     if (!selectedStaffId || pin.length < 4) return;
     setIsVerifying(true);
@@ -59,42 +53,42 @@ export default function StaffLoginScreen() {
   const PAD_KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
 
   return (
-    <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       {/* Logo */}
       <div className="flex flex-col items-center mb-10">
-        <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-2xl bg-black flex-shrink-0">
+        <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-2xl bg-muted flex-shrink-0">
           <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
         </div>
-        <h1 className="text-3xl font-bold text-[#d4a96a] tracking-wide">Tier Coffee</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-wide">Tier Coffee</h1>
         {currentBranch ? (
-          <div className="flex items-center gap-1 text-[#a07850] text-sm mt-1">
+          <div className="flex items-center gap-1 text-muted-foreground text-sm mt-1">
             <MapPin className="w-3.5 h-3.5" /><span>{currentBranch.name}</span>
           </div>
         ) : (
-          <p className="text-[#a07850] text-sm mt-1">Point of Sale</p>
+          <p className="text-muted-foreground text-sm mt-1">Point of Sale</p>
         )}
       </div>
 
-      <div className="w-full max-w-md bg-[#2d1a0e] rounded-3xl shadow-2xl border border-[#5c3d2e]/30 overflow-hidden">
+      <div className="w-full max-w-md bg-card rounded-3xl shadow-2xl border border-border overflow-hidden">
         {!selectedStaffId ? (
           /* Step 1: Select Staff */
           <div className="p-8">
-            <h2 className="text-xl font-semibold text-[#e8d5b7] text-center mb-6">เลือกพนักงาน</h2>
+            <h2 className="text-xl font-semibold text-foreground text-center mb-6">เลือกพนักงาน</h2>
             <div className="space-y-3">
               {staffList.filter((s) => s.isActive).map((staff) => (
                 <button
                   key={staff.id}
                   onClick={() => setSelectedStaffId(staff.id)}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#3d2415] hover:bg-[#4d3020] border border-[#5c3d2e]/40 hover:border-[#d4a96a]/50 transition-all duration-200 group"
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted hover:bg-secondary border border-border hover:border-primary/40 transition-all duration-200 group"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#5c3d2e] flex items-center justify-center flex-shrink-0 group-hover:bg-[#7a5040] transition-colors">
-                    <span className="text-[#d4a96a] font-bold text-lg">
+                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 group-hover:bg-accent/20 transition-colors">
+                    <span className="text-foreground font-bold text-lg">
                       {staff.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div className="text-left">
-                    <p className="text-[#e8d5b7] font-medium">{staff.name}</p>
-                    <p className="text-[#a07850] text-sm">
+                    <p className="text-foreground font-medium">{staff.name}</p>
+                    <p className="text-muted-foreground text-sm">
                       {staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
                     </p>
                   </div>
@@ -104,7 +98,7 @@ export default function StaffLoginScreen() {
                 </button>
               ))}
               {staffList.filter((s) => s.isActive).length === 0 && (
-                <p className="text-[#a07850] text-center py-8">ยังไม่มีพนักงานในระบบ</p>
+                <p className="text-muted-foreground text-center py-8">ยังไม่มีพนักงานในระบบ</p>
               )}
             </div>
           </div>
@@ -113,24 +107,24 @@ export default function StaffLoginScreen() {
           <div className="p-8">
             <button
               onClick={() => { setSelectedStaffId(null); setPin(""); setError(""); }}
-              className="text-[#a07850] hover:text-[#d4a96a] text-sm mb-6 flex items-center gap-1 transition-colors"
+              className="text-muted-foreground hover:text-foreground text-sm mb-6 flex items-center gap-1 transition-colors"
             >
               ← เปลี่ยนพนักงาน
             </button>
 
             <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-[#5c3d2e] flex items-center justify-center mb-3">
-                <span className="text-[#d4a96a] font-bold text-2xl">
+              <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-3">
+                <span className="text-foreground font-bold text-2xl">
                   {selectedStaff?.name.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <p className="text-[#e8d5b7] font-semibold text-lg">{selectedStaff?.name}</p>
-              <p className="text-[#a07850] text-sm">
+              <p className="text-foreground font-semibold text-lg">{selectedStaff?.name}</p>
+              <p className="text-muted-foreground text-sm">
                 {selectedStaff?.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
               </p>
             </div>
 
-            <p className="text-[#a07850] text-center text-sm mb-4">กรอก PIN ของคุณ</p>
+            <p className="text-muted-foreground text-center text-sm mb-4">กรอก PIN ของคุณ</p>
 
             {/* PIN dots */}
             <div className="flex justify-center gap-3 mb-2">
@@ -140,8 +134,8 @@ export default function StaffLoginScreen() {
                   className={cn(
                     "w-4 h-4 rounded-full border-2 transition-all duration-150",
                     i < pin.length
-                      ? "bg-[#d4a96a] border-[#d4a96a] scale-110"
-                      : "bg-transparent border-[#5c3d2e]"
+                      ? "bg-primary border-primary scale-110"
+                      : "bg-transparent border-border"
                   )}
                 />
               ))}
@@ -162,8 +156,8 @@ export default function StaffLoginScreen() {
                     className={cn(
                       "h-14 rounded-2xl font-semibold text-xl transition-all duration-150 active:scale-95",
                       key === "⌫"
-                        ? "bg-[#3d2415] text-[#a07850] hover:bg-[#4d3020]"
-                        : "bg-[#3d2415] text-[#e8d5b7] hover:bg-[#4d3020] border border-[#5c3d2e]/30"
+                        ? "bg-muted text-muted-foreground hover:bg-secondary"
+                        : "bg-muted text-foreground hover:bg-secondary border border-border/30"
                     )}
                   >
                     {key === "⌫" ? <Delete className="w-5 h-5 mx-auto" /> : key}
@@ -175,7 +169,7 @@ export default function StaffLoginScreen() {
             <button
               onClick={handleConfirm}
               disabled={pin.length < 4 || isVerifying}
-              className="w-full mt-6 h-14 rounded-2xl bg-[#d4a96a] hover:bg-[#c49558] disabled:opacity-40 disabled:cursor-not-allowed text-[#1a0f0a] font-bold text-lg transition-all duration-200 active:scale-[0.98]"
+              className="w-full mt-6 h-14 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground font-bold text-lg transition-all duration-200 active:scale-[0.98]"
             >
               {isVerifying ? "กำลังตรวจสอบ..." : "เข้าสู่ระบบ"}
             </button>

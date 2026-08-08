@@ -83,7 +83,7 @@ export default function AdminScreen() {
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 tab === t.id ? "text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
-              style={tab === t.id ? { background: "oklch(0.38 0.08 50)" } : {}}
+              style={tab === t.id ? { background: "var(--primary)" } : {}}
             >
               {t.icon}
               {t.label}
@@ -97,7 +97,7 @@ export default function AdminScreen() {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายการสินค้า</h2>
                 {isManager && (
-                  <Button size="sm" onClick={() => setEditItemId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                  <Button size="sm" onClick={() => setEditItemId("new")} style={{ background: "var(--primary)", color: "white" }}>
                     <Plus className="w-4 h-4 mr-1" /> เพิ่มสินค้า
                   </Button>
                 )}
@@ -143,7 +143,7 @@ export default function AdminScreen() {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>หมวดหมู่</h2>
                 {isManager && (
-                  <Button size="sm" onClick={() => setEditCategoryId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                  <Button size="sm" onClick={() => setEditCategoryId("new")} style={{ background: "var(--primary)", color: "white" }}>
                     <Plus className="w-4 h-4 mr-1" /> เพิ่มหมวด
                   </Button>
                 )}
@@ -173,7 +173,7 @@ export default function AdminScreen() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการพนักงาน</h2>
-                <Button size="sm" onClick={() => setEditStaffId("new")} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+                <Button size="sm" onClick={() => setEditStaffId("new")} style={{ background: "var(--primary)", color: "white" }}>
                   <Plus className="w-4 h-4 mr-1" /> เพิ่มพนักงาน
                 </Button>
               </div>
@@ -181,7 +181,7 @@ export default function AdminScreen() {
                 {staffList.map((staff, idx) => (
                   <div key={staff.id} className={`flex items-center gap-3 px-4 py-3 ${idx < staffList.length - 1 ? "border-b border-border/50" : ""}`}>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{ background: staff.role === "manager" ? "oklch(0.38 0.08 50)" : "oklch(0.55 0.05 250)" }}>
+                      style={{ background: staff.role === "manager" ? "var(--primary)" : "var(--muted-foreground)" }}>
                       {staff.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">

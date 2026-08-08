@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, ShoppingCart, LogOut } from "lucide-react";
-import { MapPin } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut, MapPin } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
 import { useBranch } from "@/contexts/BranchContext";
 
@@ -29,7 +28,7 @@ function LiveClock() {
 }
 
 const CHANNEL_COLORS: Record<string, string> = {
-  walkin: "oklch(0.38 0.08 50)",
+  walkin: "oklch(0.75 0.005 260)",
   grab: "oklch(0.52 0.18 145)",
   lineman: "oklch(0.52 0.22 200)",
 };
@@ -54,18 +53,17 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           )}
         </div>
       </div>
-
       <div className="flex items-center gap-6">
         <LiveClock />
-        <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "oklch(0.93 0.015 75)" }}>
+        <div className="flex items-center gap-1 rounded-xl p-1 bg-muted">
           {channels.map((ch) => (
             <button
               key={ch.slug}
               onClick={() => onChannelChange(ch.slug)}
               className={`flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                channelSlug === ch.slug ? "text-white shadow-md" : "text-muted-foreground hover:text-foreground"
+                channelSlug === ch.slug ? "text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
               }`}
-              style={channelSlug === ch.slug ? { background: CHANNEL_COLORS[ch.slug] ?? "oklch(0.38 0.08 50)" } : {}}
+              style={channelSlug === ch.slug ? { background: CHANNEL_COLORS[ch.slug] ?? "oklch(0.75 0.005 260)" } : {}}
             >
               {ch.slug === "walkin" && <ShoppingCart className="w-3.5 h-3.5" />}
               {ch.name}
@@ -73,29 +71,28 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           ))}
         </div>
       </div>
-
       <div className="flex items-center gap-1 min-w-[160px] justify-end">
         {currentStaff && (
           <div className="flex items-center gap-2 mr-2">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "oklch(0.38 0.08 50)" }}>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold bg-primary">
               {currentStaff.name.charAt(0).toUpperCase()}
             </div>
             <span className="text-xs text-muted-foreground hidden md:block">{currentStaff.name}</span>
           </div>
         )}
         <Link href="/reports">
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <BarChart2 className="w-4 h-4" />
             <span>รายงาน</span>
           </button>
         </Link>
         <Link href="/admin">
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <Settings className="w-4 h-4" />
             <span>จัดการ</span>
           </button>
         </Link>
-        <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="ออกจากระบบ">
+        <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="ออกจากระบบ">
           <LogOut className="w-4 h-4" />
         </button>
       </div>

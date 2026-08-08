@@ -148,7 +148,7 @@ export default function ItemFormModal({ itemId, items, categories, modifierGroup
         </div>
         <div className="px-5 py-4 border-t border-border flex gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1">ยกเลิก</Button>
-          <Button onClick={handleSave} disabled={upsert.isPending} className="flex-1" style={{ background: "oklch(0.38 0.08 50)", color: "oklch(0.97 0.01 75)" }}>
+          <Button onClick={handleSave} disabled={upsert.isPending} className="flex-1" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
             {upsert.isPending ? "กำลังบันทึก..." : "บันทึก"}
           </Button>
         </div>

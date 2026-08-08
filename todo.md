@@ -88,3 +88,13 @@
 - [x] StaffLoginScreen: show current branch name
 - [x] Reports: filter by branch
 - [x] Orders: record branch_id per order
+
+## Phase 10: Date Range + Theme Overhaul
+- [x] เปลี่ยนธีมทั้งระบบเป็นโทนเทา/ดำ โมเดิร์น (index.css CSS variables)
+- [x] อัปเดต StaffLoginScreen ให้ใช้ธีมใหม่
+- [x] อัปเดต POSHeader ให้ใช้ธีมใหม่
+- [x] อัปเดต POSScreen / OrderPanel / ProductGrid ให้ใช้ธีมใหม่
+- [x] อัปเดต AdminScreen / SettingsScreen / ReportsScreen ให้ใช้ธีมใหม่
+- [x] เพิ่ม Date Range Picker ในหน้ารายงาน (เลือกช่วงวันที่แบบลากได้)
+- [x] อัปเดต orders.list query ให้รับ startDate/endDate จาก range picker
+- [x] อัปเดต summary cards ให้ใช้ข้อมูลจาก range ที่เลือก

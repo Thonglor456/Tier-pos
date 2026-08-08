@@ -1,8 +1,12 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange } from "lucide-react";
 import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, startOfDay, endOfDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "เงินสด",
@@ -11,7 +15,9 @@ const PAYMENT_LABELS: Record<string, string> = {
 };
 
 export default function ReportsScreen() {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const today = useMemo(() => new Date(), []);
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: new Date(), to: new Date() }));
+  const [calOpen, setCalOpen] = useState(false);
   const [filterChannel, setFilterChannel] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
@@ -21,21 +27,23 @@ export default function ReportsScreen() {
   const [cancelReason, setCancelReason] = useState("");
 
   const utils = trpc.useUtils();
-  // Fix: endDate must be end-of-day so all orders on the selected date are included
-  const endDateStr = useMemo(() => `${selectedDate}T23:59:59.999`, [selectedDate]);
 
-  const { data: summary } = trpc.orders.dailySummary.useQuery({ date: selectedDate });
+  const startDateStr = useMemo(() => startOfDay(dateRange.from ?? today).toISOString(), [dateRange.from, today]);
+  const endDateStr = useMemo(() => endOfDay(dateRange.to ?? dateRange.from ?? today).toISOString(), [dateRange.to, dateRange.from, today]);
+  const summaryDate = useMemo(() => (dateRange.from ?? today).toISOString().slice(0, 10), [dateRange.from, today]);
+
+  const { data: summary } = trpc.orders.dailySummary.useQuery({ date: summaryDate });
   const { data: channels = [] } = trpc.channels.list.useQuery();
   const { data: branches = [] } = trpc.branches.list.useQuery();
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
   const { data: orders = [] } = trpc.orders.list.useQuery({
-    startDate: `${selectedDate}T00:00:00.000`,
+    startDate: startDateStr,
     endDate: endDateStr,
     channel: filterChannel !== "all" ? filterChannel : undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
     staffId: filterStaff !== "all" ? filterStaff : undefined,
     branchId: filterBranch !== "all" ? filterBranch : undefined,
-    limit: 200,
+    limit: 500,
   });
 
   const cancelMutation = trpc.orders.cancelDirect.useMutation({
@@ -96,11 +104,30 @@ export default function ReportsScreen() {
     return map;
   }, [orders]);
 
-  const totalRevenue = summary?.totalRevenue ?? 0;
-  const totalOrders = (summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0);
-  const completedOrders = summary?.completedCount ?? 0;
-  const cancelledOrders = summary?.cancelledCount ?? 0;
+  // For range display: compute totals from orders (not dailySummary which is single-day)
+  const isMultiDay = dateRange.from && dateRange.to && dateRange.from.toDateString() !== dateRange.to.toDateString();
+  const rangeRevenue = useMemo(() => orders.filter(o => o.status === "completed").reduce((s, o) => s + parseFloat(String(o.totalAmount)), 0), [orders]);
+  const rangeCompleted = useMemo(() => orders.filter(o => o.status === "completed").length, [orders]);
+  const rangeCancelled = useMemo(() => orders.filter(o => o.status === "cancelled").length, [orders]);
+
+  const totalRevenue = isMultiDay ? rangeRevenue : (summary?.totalRevenue ?? rangeRevenue);
+  const totalOrders = isMultiDay ? orders.length : ((summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0));
+  const completedOrders = isMultiDay ? rangeCompleted : (summary?.completedCount ?? rangeCompleted);
+  const cancelledOrders = isMultiDay ? rangeCancelled : (summary?.cancelledCount ?? rangeCancelled);
   const filteredOrders = orders.filter((o) => filterPayment === "all" || o.paymentMethod === filterPayment);
+
+  const setPreset = (from: Date, to: Date) => {
+    setDateRange({ from, to });
+    setCalOpen(false);
+  };
+
+  const dateLabel = useMemo(() => {
+    if (!dateRange.from) return "เลือกวันที่";
+    if (!dateRange.to || dateRange.from.toDateString() === dateRange.to.toDateString()) {
+      return format(dateRange.from, "dd/MM/yyyy");
+    }
+    return `${format(dateRange.from, "dd/MM/yyyy")} – ${format(dateRange.to, "dd/MM/yyyy")}`;
+  }, [dateRange]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -157,12 +184,38 @@ export default function ReportsScreen() {
         <div className="h-5 w-px bg-border" />
         <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
         <div className="ml-auto">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors min-w-[160px] justify-between">
+                <CalendarRange className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="flex-1 text-center">{dateLabel}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-card border border-border shadow-2xl" align="end">
+              <div className="p-2 border-b border-border flex gap-1 flex-wrap">
+                {([
+                  { label: "วันนี้", fn: () => { const d = new Date(); setPreset(d, d); } },
+                  { label: "เมื่อวาน", fn: () => { const d = new Date(); d.setDate(d.getDate()-1); setPreset(d, d); } },
+                  { label: "7 วัน", fn: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate()-6); setPreset(from, to); } },
+                  { label: "30 วัน", fn: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate()-29); setPreset(from, to); } },
+                  { label: "เดือนนี้", fn: () => { const now = new Date(); const from = new Date(now.getFullYear(), now.getMonth(), 1); setPreset(from, now); } },
+                ] as const).map((p) => (
+                  <button key={p.label} onClick={p.fn} className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-secondary text-foreground transition-colors">{p.label}</button>
+                ))}
+              </div>
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  if (range) {
+                    setDateRange(range);
+                    if (range.from && range.to) setCalOpen(false);
+                  }
+                }}
+                numberOfMonths={1}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </header>
 
@@ -170,7 +223,7 @@ export default function ReportsScreen() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "ยอดขายรวม", value: `฿${Number(totalRevenue).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.38 0.08 50)" },
+            { label: "ยอดขายรวม", value: `฿${Number(totalRevenue).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.75 0.005 260)" },
             { label: "จำนวนบิล", value: `${totalOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.52 0.18 145)" },
             { label: "สำเร็จ", value: `${completedOrders} บิล`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.52 0.22 200)" },
             { label: "ยกเลิก", value: `${cancelledOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.55 0.18 25)" },
@@ -252,7 +305,7 @@ export default function ReportsScreen() {
               {staffBreakdown.map((s) => (
                 <div key={s.name} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "oklch(0.38 0.08 50)" }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold bg-primary">
                       {s.name.charAt(0)}
                     </div>
                     <span className="text-sm text-foreground">{s.name}</span>
@@ -284,7 +337,7 @@ export default function ReportsScreen() {
               <option value="all">ทุกพนักงาน</option>
               {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "completed" | "cancelled")} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "completed" | "cancelled")} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
               <option value="all">ทุกสถานะ</option>
               <option value="completed">สำเร็จ</option>
               <option value="cancelled">ยกเลิก</option>
@@ -312,7 +365,7 @@ export default function ReportsScreen() {
                   return (
                     <tr key={order.id} className={`border-b border-border/40 last:border-0 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
                       <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(order.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(order.createdAt).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })} {new Date(order.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                       </td>
                       <td className="px-4 py-2.5 text-xs font-mono text-foreground">#{order.id}</td>
                       <td className="px-4 py-2.5 text-xs text-foreground">{chName}</td>
@@ -320,7 +373,7 @@ export default function ReportsScreen() {
                       <td className="px-4 py-2.5 text-xs text-foreground">{staffName}</td>
                       <td className="px-4 py-2.5 text-sm font-bold text-foreground text-right">฿{Number(order.totalAmount).toLocaleString()}</td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === "completed" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === "completed" ? "bg-green-900/40 text-green-400" : "bg-red-900/40 text-red-400"}`}>
                           {order.status === "completed" ? "สำเร็จ" : "ยกเลิก"}
                         </span>
                       </td>
@@ -328,7 +381,7 @@ export default function ReportsScreen() {
                         {order.status === "completed" && (
                           <button
                             onClick={() => handleCancelClick(order.id)}
-                            className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                            className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-2 py-1 rounded-lg transition-colors"
                             title="ยกเลิกบิล"
                           >
                             <XCircle className="w-4 h-4" />
@@ -339,7 +392,7 @@ export default function ReportsScreen() {
                   );
                 })}
                 {filteredOrders.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">ไม่มีรายการในวันที่เลือก</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">ไม่มีรายการในช่วงวันที่เลือก</td></tr>
                 )}
               </tbody>
             </table>

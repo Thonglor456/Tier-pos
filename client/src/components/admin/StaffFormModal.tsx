@@ -91,7 +91,7 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
           </div>
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>ยกเลิก</Button>
-            <Button type="submit" className="flex-1" disabled={upsert.isPending} style={{ background: "oklch(0.38 0.08 50)", color: "white" }}>
+            <Button type="submit" className="flex-1" disabled={upsert.isPending} style={{ background: "var(--primary)", color: "white" }}>
               {upsert.isPending ? "กำลังบันทึก..." : "บันทึก"}
             </Button>
           </div>

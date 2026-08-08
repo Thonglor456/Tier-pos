@@ -26,11 +26,11 @@ export default function SettingsScreen() {
   // Guard: only manager can access settings
   if (currentStaff?.role !== "manager") {
     return (
-      <div className="min-h-screen bg-[#faf7f2] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[#5c3d2e] text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-          <p className="text-[#a07850] text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
-          <Button onClick={() => navigate("/")} className="mt-4 bg-[#5c3d2e] text-white">กลับหน้าขาย</Button>
+          <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <Button onClick={() => navigate("/")} className="mt-4 bg-primary text-white">กลับหน้าขาย</Button>
         </div>
       </div>
     );
@@ -46,18 +46,18 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf7f2] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-[#e8d5b7] px-6 py-4 flex items-center gap-4">
-        <button onClick={() => navigate("/")} className="text-[#5c3d2e] hover:text-[#3d2415] transition-colors">
+      <header className="bg-card border-b border-border px-6 py-4 flex items-center gap-4">
+        <button onClick={() => navigate("/")} className="text-primary hover:text-foreground transition-colors">
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-xl font-bold text-[#3d2415]">ตั้งค่า</h1>
+        <h1 className="text-xl font-bold text-foreground">ตั้งค่า</h1>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-56 bg-white border-r border-[#e8d5b7] p-4 flex flex-col gap-1">
+        <aside className="w-56 bg-card border-r border-border p-4 flex flex-col gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -65,8 +65,8 @@ export default function SettingsScreen() {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
                 activeTab === tab.id
-                  ? "bg-[#5c3d2e] text-white"
-                  : "text-[#5c3d2e] hover:bg-[#f5ede0]"
+                  ? "bg-primary text-white"
+                  : "text-primary hover:bg-muted"
               )}
             >
               {tab.icon}
@@ -120,10 +120,10 @@ function BranchesSection() {
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#3d2415]">จัดการสาขา</h2>
-          <p className="text-sm text-[#a07850] mt-1">สาขาที่ใช้งานอยู่: <strong>{branchCtx?.currentBranch?.name ?? "ยังไม่ได้เลือก"}</strong></p>
+          <h2 className="text-xl font-bold text-foreground">จัดการสาขา</h2>
+          <p className="text-sm text-muted-foreground mt-1">สาขาที่ใช้งานอยู่: <strong>{branchCtx?.currentBranch?.name ?? "ยังไม่ได้เลือก"}</strong></p>
         </div>
-        <Button onClick={openAdd} className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white gap-2">
+        <Button onClick={openAdd} className="bg-primary hover:bg-primary/90 text-white gap-2">
           <Plus className="w-4 h-4" /> เพิ่มสาขา
         </Button>
       </div>
@@ -131,33 +131,33 @@ function BranchesSection() {
         {branchesList.map((branch) => {
           const isSelected = branchCtx?.currentBranch?.id === branch.id;
           return (
-            <div key={branch.id} className={cn("bg-white rounded-2xl border p-4 flex items-center gap-4 transition-all", isSelected ? "border-[#5c3d2e] ring-2 ring-[#5c3d2e]/20" : "border-[#e8d5b7]")}>
-              <div className="w-10 h-10 rounded-xl bg-[#f5ede0] flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-[#5c3d2e]" />
+            <div key={branch.id} className={cn("bg-card rounded-2xl border p-4 flex items-center gap-4 transition-all", isSelected ? "border-primary ring-2 ring-primary/20" : "border-border")}>
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-[#3d2415]">{branch.name}</p>
-                  {isSelected && <span className="text-xs bg-[#5c3d2e] text-white px-2 py-0.5 rounded-full">ใช้งานอยู่</span>}
+                  <p className="font-semibold text-foreground">{branch.name}</p>
+                  {isSelected && <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">ใช้งานอยู่</span>}
                   {!branch.isActive && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">ปิดใช้งาน</span>}
                 </div>
-                {branch.address && <p className="text-sm text-[#a07850] truncate">{branch.address}</p>}
-                {branch.phone && <p className="text-sm text-[#a07850]">{branch.phone}</p>}
+                {branch.address && <p className="text-sm text-muted-foreground truncate">{branch.address}</p>}
+                {branch.phone && <p className="text-sm text-muted-foreground">{branch.phone}</p>}
               </div>
               <div className="flex items-center gap-2">
                 {!isSelected && (
-                  <Button onClick={() => handleSelectBranch(branch)} size="sm" variant="outline" className="text-[#5c3d2e] border-[#5c3d2e] hover:bg-[#f5ede0] text-xs">
+                  <Button onClick={() => handleSelectBranch(branch)} size="sm" variant="outline" className="text-primary border-primary hover:bg-muted text-xs">
                     เลือกสาขานี้
                   </Button>
                 )}
-                <button onClick={() => openEdit(branch)} className="p-2 rounded-lg hover:bg-[#f5ede0] text-[#5c3d2e] transition-colors"><Edit2 className="w-4 h-4" /></button>
+                <button onClick={() => openEdit(branch)} className="p-2 rounded-lg hover:bg-muted text-primary transition-colors"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => { if (confirm(`ลบสาขา "${branch.name}" ใช่ไหม?`)) deleteMutation.mutate({ id: branch.id }); }} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
           );
         })}
         {branchesList.length === 0 && (
-          <div className="text-center py-12 text-[#a07850]">
+          <div className="text-center py-12 text-muted-foreground">
             <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p>ยังไม่มีสาขา กดปุ่ม "เพิ่มสาขา" เพื่อเริ่มต้น</p>
           </div>
@@ -174,7 +174,7 @@ function BranchesSection() {
               <div className="flex items-center gap-3"><Switch checked={editBranch.isActive} onCheckedChange={(v) => setEditBranch({ ...editBranch, isActive: v })} /><Label>เปิดใช้งาน</Label></div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => { setShowForm(false); setEditBranch(null); }} className="flex-1">ยกเลิก</Button>
-                <Button onClick={handleSave} disabled={!editBranch.name.trim() || upsertMutation.isPending} className="flex-1 bg-[#5c3d2e] hover:bg-[#3d2415] text-white">บันทึก</Button>
+                <Button onClick={handleSave} disabled={!editBranch.name.trim() || upsertMutation.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white">บันทึก</Button>
               </div>
             </div>
           )}
@@ -200,30 +200,30 @@ function ShopInfoSection() {
 
   return (
     <div className="max-w-lg">
-      <h2 className="text-lg font-bold text-[#3d2415] mb-6">ข้อมูลร้าน</h2>
+      <h2 className="text-lg font-bold text-foreground mb-6">ข้อมูลร้าน</h2>
       <div className="space-y-4">
         <div>
-          <Label className="text-[#5c3d2e] font-medium">ชื่อร้าน</Label>
-          <Input value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" />
+          <Label className="text-primary font-medium">ชื่อร้าน</Label>
+          <Input value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} className="mt-1 border-border focus-visible:ring-ring" />
         </div>
         <div>
-          <Label className="text-[#5c3d2e] font-medium">ที่อยู่</Label>
-          <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" placeholder="ที่อยู่ร้าน" />
+          <Label className="text-primary font-medium">ที่อยู่</Label>
+          <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1 border-border focus-visible:ring-ring" placeholder="ที่อยู่ร้าน" />
         </div>
         <div>
-          <Label className="text-[#5c3d2e] font-medium">เบอร์โทร</Label>
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" placeholder="0xx-xxx-xxxx" />
+          <Label className="text-primary font-medium">เบอร์โทร</Label>
+          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 border-border focus-visible:ring-ring" placeholder="0xx-xxx-xxxx" />
         </div>
         <div>
-          <Label className="text-[#5c3d2e] font-medium">เลขผู้เสียภาษี (ถ้ามี)</Label>
-          <Input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" placeholder="เลข 13 หลัก" />
+          <Label className="text-primary font-medium">เลขผู้เสียภาษี (ถ้ามี)</Label>
+          <Input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} className="mt-1 border-border focus-visible:ring-ring" placeholder="เลข 13 หลัก" />
         </div>
         <div>
-          <Label className="text-[#5c3d2e] font-medium">QR PromptPay (สำหรับรับโอนเงิน)</Label>
-          <p className="text-[#a07850] text-xs mt-1 mb-2">อัปโหลดรูป QR Code PromptPay ของร้าน เพื่อแสดงในหน้าชำระเงิน</p>
+          <Label className="text-primary font-medium">QR PromptPay (สำหรับรับโอนเงิน)</Label>
+          <p className="text-muted-foreground text-xs mt-1 mb-2">อัปโหลดรูป QR Code PromptPay ของร้าน เพื่อแสดงในหน้าชำระเงิน</p>
           <QrUploadField currentUrl={settings?.promptpayQrUrl ?? null} onSave={(url) => updateMutation.mutate({ promptpayQrUrl: url })} />
         </div>
-        <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white w-full">
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-white w-full">
           {updateMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
         </Button>
       </div>
@@ -248,15 +248,15 @@ function QrUploadField({ currentUrl, onSave }: { currentUrl: string | null; onSa
     <div className="flex items-center gap-4">
       {preview ? (
         <div className="relative">
-          <img src={preview} alt="QR" className="w-24 h-24 object-contain border border-[#e8d5b7] rounded-lg" />
+          <img src={preview} alt="QR" className="w-24 h-24 object-contain border border-border rounded-lg" />
           <button onClick={() => { setPreview(null); onSave(null); }} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
             <X className="w-3 h-3 text-white" />
           </button>
         </div>
       ) : (
-        <label className="w-24 h-24 border-2 border-dashed border-[#e8d5b7] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#d4a96a] transition-colors">
-          <Upload className="w-6 h-6 text-[#a07850]" />
-          <span className="text-xs text-[#a07850] mt-1">อัปโหลด</span>
+        <label className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
+          <Upload className="w-6 h-6 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground mt-1">อัปโหลด</span>
           <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
         </label>
       )}
@@ -280,25 +280,25 @@ function VatSection() {
 
   return (
     <div className="max-w-lg">
-      <h2 className="text-lg font-bold text-[#3d2415] mb-6">ภาษีมูลค่าเพิ่ม (VAT)</h2>
-      <div className="bg-white rounded-2xl border border-[#e8d5b7] p-6 space-y-5">
+      <h2 className="text-lg font-bold text-foreground mb-6">ภาษีมูลค่าเพิ่ม (VAT)</h2>
+      <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-[#3d2415]">เปิดใช้งาน VAT</p>
-            <p className="text-sm text-[#a07850]">แสดง VAT แยกในใบเสร็จและสรุปยอด</p>
+            <p className="font-medium text-foreground">เปิดใช้งาน VAT</p>
+            <p className="text-sm text-muted-foreground">แสดง VAT แยกในใบเสร็จและสรุปยอด</p>
           </div>
-          <Switch checked={vatEnabled} onCheckedChange={setVatEnabled} className="data-[state=checked]:bg-[#5c3d2e]" />
+          <Switch checked={vatEnabled} onCheckedChange={setVatEnabled} className="data-[state=checked]:bg-primary" />
         </div>
         {vatEnabled && (
           <div>
-            <Label className="text-[#5c3d2e] font-medium">อัตรา VAT (%)</Label>
+            <Label className="text-primary font-medium">อัตรา VAT (%)</Label>
             <div className="flex items-center gap-2 mt-1">
-              <Input type="number" value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-24 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" min="0" max="100" step="0.5" />
-              <span className="text-[#5c3d2e]">%</span>
+              <Input type="number" value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-24 border-border focus-visible:ring-ring" min="0" max="100" step="0.5" />
+              <span className="text-primary">%</span>
             </div>
           </div>
         )}
-        <Button onClick={() => updateMutation.mutate({ vatEnabled, vatRate: parseFloat(vatRate) || 7 })} disabled={updateMutation.isPending} className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white w-full">
+        <Button onClick={() => updateMutation.mutate({ vatEnabled, vatRate: parseFloat(vatRate) || 7 })} disabled={updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-white w-full">
           {updateMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
         </Button>
       </div>
@@ -322,20 +322,20 @@ function HoursSection() {
 
   return (
     <div className="max-w-lg">
-      <h2 className="text-lg font-bold text-[#3d2415] mb-6">เวลาเปิด-ปิดร้าน</h2>
-      <div className="bg-white rounded-2xl border border-[#e8d5b7] p-6 space-y-4">
-        <p className="text-sm text-[#a07850]">ใช้เป็นข้อมูลอ้างอิงในรายงาน ไม่บล็อกการขายนอกเวลา</p>
+      <h2 className="text-lg font-bold text-foreground mb-6">เวลาเปิด-ปิดร้าน</h2>
+      <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+        <p className="text-sm text-muted-foreground">ใช้เป็นข้อมูลอ้างอิงในรายงาน ไม่บล็อกการขายนอกเวลา</p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-[#5c3d2e] font-medium">เวลาเปิด</Label>
-            <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" />
+            <Label className="text-primary font-medium">เวลาเปิด</Label>
+            <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="mt-1 border-border focus-visible:ring-ring" />
           </div>
           <div>
-            <Label className="text-[#5c3d2e] font-medium">เวลาปิด</Label>
-            <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="mt-1 border-[#e8d5b7] focus-visible:ring-[#d4a96a]" />
+            <Label className="text-primary font-medium">เวลาปิด</Label>
+            <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="mt-1 border-border focus-visible:ring-ring" />
           </div>
         </div>
-        <Button onClick={() => updateMutation.mutate({ openTime, closeTime })} disabled={updateMutation.isPending} className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white w-full">
+        <Button onClick={() => updateMutation.mutate({ openTime, closeTime })} disabled={updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-white w-full">
           {updateMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
         </Button>
       </div>
@@ -369,31 +369,31 @@ function ChannelsSection() {
   return (
     <div className="max-w-lg">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-[#3d2415]">ช่องทางการขาย</h2>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white gap-1">
+        <h2 className="text-lg font-bold text-foreground">ช่องทางการขาย</h2>
+        <Button onClick={() => setShowAdd(true)} size="sm" className="bg-primary hover:bg-primary/90 text-white gap-1">
           <Plus className="w-4 h-4" /> เพิ่ม
         </Button>
       </div>
       <div className="space-y-3">
         {channels.map((ch) => (
-          <div key={ch.id} className="bg-white rounded-2xl border border-[#e8d5b7] p-4 flex items-center gap-3">
+          <div key={ch.id} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
             {editId === ch.id ? (
               <>
                 <div className="flex-1 grid grid-cols-2 gap-2">
-                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="ชื่อ" className="border-[#e8d5b7]" />
-                  <Input value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="slug (ภาษาอังกฤษ)" className="border-[#e8d5b7]" />
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="ชื่อ" className="border-border" />
+                  <Input value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="slug (ภาษาอังกฤษ)" className="border-border" />
                 </div>
                 <button onClick={() => handleSaveEdit(ch)} className="text-green-600 hover:text-green-700"><Check className="w-5 h-5" /></button>
-                <button onClick={() => setEditId(null)} className="text-[#a07850] hover:text-[#5c3d2e]"><X className="w-5 h-5" /></button>
+                <button onClick={() => setEditId(null)} className="text-muted-foreground hover:text-primary"><X className="w-5 h-5" /></button>
               </>
             ) : (
               <>
                 <div className="flex-1">
-                  <p className="font-medium text-[#3d2415]">{ch.name}</p>
-                  <p className="text-xs text-[#a07850]">slug: {ch.slug}</p>
+                  <p className="font-medium text-foreground">{ch.name}</p>
+                  <p className="text-xs text-muted-foreground">slug: {ch.slug}</p>
                 </div>
-                <Switch checked={ch.isActive} onCheckedChange={(v) => upsertMutation.mutate({ ...ch, isActive: v })} className="data-[state=checked]:bg-[#5c3d2e]" />
-                <button onClick={() => { setEditId(ch.id); setEditName(ch.name); setEditSlug(ch.slug); }} className="text-[#a07850] hover:text-[#5c3d2e]"><Edit2 className="w-4 h-4" /></button>
+                <Switch checked={ch.isActive} onCheckedChange={(v) => upsertMutation.mutate({ ...ch, isActive: v })} className="data-[state=checked]:bg-primary" />
+                <button onClick={() => { setEditId(ch.id); setEditName(ch.name); setEditSlug(ch.slug); }} className="text-muted-foreground hover:text-primary"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => deleteMutation.mutate({ id: ch.id })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
               </>
             )}
@@ -401,12 +401,12 @@ function ChannelsSection() {
         ))}
       </div>
       {showAdd && (
-        <div className="mt-4 bg-white rounded-2xl border border-[#d4a96a] p-4 space-y-3">
-          <p className="font-medium text-[#3d2415]">เพิ่มช่องทางใหม่</p>
-          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="ชื่อช่องทาง เช่น Foodpanda" className="border-[#e8d5b7]" />
-          <Input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="slug เช่น foodpanda (ภาษาอังกฤษ ไม่มีช่องว่าง)" className="border-[#e8d5b7]" />
+        <div className="mt-4 bg-card rounded-2xl border border-primary/50 p-4 space-y-3">
+          <p className="font-medium text-foreground">เพิ่มช่องทางใหม่</p>
+          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="ชื่อช่องทาง เช่น Foodpanda" className="border-border" />
+          <Input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="slug เช่น foodpanda (ภาษาอังกฤษ ไม่มีช่องว่าง)" className="border-border" />
           <div className="flex gap-2">
-            <Button onClick={handleAdd} className="bg-[#5c3d2e] text-white flex-1">เพิ่ม</Button>
+            <Button onClick={handleAdd} className="bg-primary text-white flex-1">เพิ่ม</Button>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="flex-1">ยกเลิก</Button>
           </div>
         </div>
@@ -434,22 +434,22 @@ function ModifiersSection() {
   return (
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-[#3d2415]">ตัวเลือกเพิ่มเติม (Modifier Groups)</h2>
-        <Button onClick={() => { setShowAddGroup(true); setGroupForm({ name: "", isRequired: false, minSelect: 0, maxSelect: 1, sortOrder: groups.length }); }} size="sm" className="bg-[#5c3d2e] text-white gap-1">
+        <h2 className="text-lg font-bold text-foreground">ตัวเลือกเพิ่มเติม (Modifier Groups)</h2>
+        <Button onClick={() => { setShowAddGroup(true); setGroupForm({ name: "", isRequired: false, minSelect: 0, maxSelect: 1, sortOrder: groups.length }); }} size="sm" className="bg-primary text-white gap-1">
           <Plus className="w-4 h-4" /> เพิ่มกลุ่ม
         </Button>
       </div>
 
       {showAddGroup && (
-        <div className="mb-4 bg-white rounded-2xl border border-[#d4a96a] p-4 space-y-3">
-          <p className="font-semibold text-[#3d2415]">กลุ่มใหม่</p>
-          <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="ชื่อกลุ่ม เช่น ระดับความหวาน" className="border-[#e8d5b7]" />
+        <div className="mb-4 bg-card rounded-2xl border border-primary/50 p-4 space-y-3">
+          <p className="font-semibold text-foreground">กลุ่มใหม่</p>
+          <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="ชื่อกลุ่ม เช่น ระดับความหวาน" className="border-border" />
           <div className="flex items-center gap-3">
-            <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-[#5c3d2e]" />
-            <span className="text-sm text-[#5c3d2e]">บังคับเลือก</span>
+            <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-primary" />
+            <span className="text-sm text-primary">บังคับเลือก</span>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => { upsertGroupMutation.mutate(groupForm); setShowAddGroup(false); }} className="bg-[#5c3d2e] text-white flex-1">เพิ่ม</Button>
+            <Button onClick={() => { upsertGroupMutation.mutate(groupForm); setShowAddGroup(false); }} className="bg-primary text-white flex-1">เพิ่ม</Button>
             <Button variant="outline" onClick={() => setShowAddGroup(false)} className="flex-1">ยกเลิก</Button>
           </div>
         </div>
@@ -457,46 +457,46 @@ function ModifiersSection() {
 
       <div className="space-y-3">
         {groups.map((group) => (
-          <div key={group.id} className="bg-white rounded-2xl border border-[#e8d5b7] overflow-hidden">
+          <div key={group.id} className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="flex items-center gap-3 p-4">
               {editGroupId === group.id ? (
                 <>
-                  <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} className="flex-1 border-[#e8d5b7]" />
-                  <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-[#5c3d2e]" />
-                  <span className="text-xs text-[#a07850]">บังคับ</span>
+                  <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} className="flex-1 border-border" />
+                  <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-primary" />
+                  <span className="text-xs text-muted-foreground">บังคับ</span>
                   <button onClick={() => { upsertGroupMutation.mutate({ ...groupForm, id: group.id }); setEditGroupId(null); }} className="text-green-600"><Check className="w-5 h-5" /></button>
-                  <button onClick={() => setEditGroupId(null)} className="text-[#a07850]"><X className="w-5 h-5" /></button>
+                  <button onClick={() => setEditGroupId(null)} className="text-muted-foreground"><X className="w-5 h-5" /></button>
                 </>
               ) : (
                 <>
                   <button onClick={() => setExpandedGroup(expandedGroup === group.id ? null : group.id)} className="flex-1 text-left">
-                    <p className="font-medium text-[#3d2415]">{group.name}</p>
-                    <p className="text-xs text-[#a07850]">{group.isRequired ? "บังคับเลือก" : "ไม่บังคับ"} · {group.options.length} ตัวเลือก</p>
+                    <p className="font-medium text-foreground">{group.name}</p>
+                    <p className="text-xs text-muted-foreground">{group.isRequired ? "บังคับเลือก" : "ไม่บังคับ"} · {group.options.length} ตัวเลือก</p>
                   </button>
-                  <button onClick={() => { setEditGroupId(group.id); setGroupForm({ name: group.name, isRequired: group.isRequired, minSelect: group.minSelect, maxSelect: group.maxSelect, sortOrder: group.sortOrder }); }} className="text-[#a07850] hover:text-[#5c3d2e]"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => { setEditGroupId(group.id); setGroupForm({ name: group.name, isRequired: group.isRequired, minSelect: group.minSelect, maxSelect: group.maxSelect, sortOrder: group.sortOrder }); }} className="text-muted-foreground hover:text-primary"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => deleteGroupMutation.mutate({ id: group.id })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </>
               )}
             </div>
 
             {expandedGroup === group.id && (
-              <div className="border-t border-[#f0e4d0] p-4 space-y-2 bg-[#faf7f2]">
+              <div className="border-t border-border p-4 space-y-2 bg-background">
                 {group.options.map((opt) => (
-                  <div key={opt.id} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-[#e8d5b7]">
-                    <span className="flex-1 text-sm text-[#3d2415]">{opt.name}</span>
-                    <span className="text-sm text-[#a07850]">{parseFloat(String(opt.priceAdd)) > 0 ? `+${opt.priceAdd}฿` : "ฟรี"}</span>
+                  <div key={opt.id} className="flex items-center gap-2 bg-card rounded-xl px-3 py-2 border border-border">
+                    <span className="flex-1 text-sm text-foreground">{opt.name}</span>
+                    <span className="text-sm text-muted-foreground">{parseFloat(String(opt.priceAdd)) > 0 ? `+${opt.priceAdd}฿` : "ฟรี"}</span>
                     <button onClick={() => deleteOptionMutation.mutate({ id: opt.id })} className="text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
                 {newOptionGroupId === group.id ? (
                   <div className="flex gap-2 mt-2">
-                    <Input value={newOptionName} onChange={(e) => setNewOptionName(e.target.value)} placeholder="ชื่อตัวเลือก" className="flex-1 border-[#e8d5b7] h-9 text-sm" />
-                    <Input type="number" value={newOptionPrice} onChange={(e) => setNewOptionPrice(e.target.value)} placeholder="ราคาเพิ่ม" className="w-24 border-[#e8d5b7] h-9 text-sm" />
+                    <Input value={newOptionName} onChange={(e) => setNewOptionName(e.target.value)} placeholder="ชื่อตัวเลือก" className="flex-1 border-border h-9 text-sm" />
+                    <Input type="number" value={newOptionPrice} onChange={(e) => setNewOptionPrice(e.target.value)} placeholder="ราคาเพิ่ม" className="w-24 border-border h-9 text-sm" />
                     <button onClick={() => { upsertOptionMutation.mutate({ modifierGroupId: group.id, name: newOptionName, priceAdd: parseFloat(newOptionPrice) || 0, sortOrder: group.options.length, isActive: true }); setNewOptionName(""); setNewOptionPrice("0"); setNewOptionGroupId(null); }} className="text-green-600"><Check className="w-5 h-5" /></button>
-                    <button onClick={() => setNewOptionGroupId(null)} className="text-[#a07850]"><X className="w-5 h-5" /></button>
+                    <button onClick={() => setNewOptionGroupId(null)} className="text-muted-foreground"><X className="w-5 h-5" /></button>
                   </div>
                 ) : (
-                  <button onClick={() => setNewOptionGroupId(group.id)} className="flex items-center gap-1 text-sm text-[#5c3d2e] hover:text-[#3d2415] mt-1">
+                  <button onClick={() => setNewOptionGroupId(group.id)} className="flex items-center gap-1 text-sm text-primary hover:text-foreground mt-1">
                     <Plus className="w-4 h-4" /> เพิ่มตัวเลือก
                   </button>
                 )}

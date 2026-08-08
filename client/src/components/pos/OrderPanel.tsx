@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { CartItem } from "@/types/pos";
 
 const CHANNEL_COLORS: Record<string, string> = {
-  walkin: "oklch(0.38 0.08 50)",
+  walkin: "oklch(0.75 0.005 260)",
   grab: "oklch(0.52 0.18 145)",
   lineman: "oklch(0.52 0.22 200)",
 };
@@ -29,7 +29,7 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
           <div className="flex items-center gap-2">
             <span
               className="text-xs font-semibold px-2.5 py-1 rounded-full text-white"
-              style={{ background: CHANNEL_COLORS[channelSlug] ?? "oklch(0.38 0.08 50)" }}
+              style={{ background: CHANNEL_COLORS[channelSlug] ?? "var(--primary)" }}
             >
               {channelName}
             </span>
@@ -103,7 +103,7 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
         </div>
         <div className="flex justify-between items-center pt-1 border-t border-border/60">
           <span className="text-base font-bold text-foreground">ยอดสุทธิ</span>
-          <span className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: "oklch(0.38 0.08 50)" }}>
+          <span className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: "var(--primary)" }}>
             {total.toLocaleString()}.-
           </span>
         </div>
@@ -111,7 +111,7 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
           onClick={onCheckout}
           disabled={cart.length === 0}
           className="w-full h-13 text-base font-bold rounded-xl mt-1 flex items-center gap-2"
-          style={cart.length > 0 ? { background: "oklch(0.38 0.08 50)", color: "white" } : {}}
+          style={cart.length > 0 ? { background: "var(--primary)", color: "white" } : {}}
         >
           <ShoppingCart className="w-4 h-4" />
           ชำระเงิน

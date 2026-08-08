@@ -152,7 +152,7 @@ export default function ModifierModal({ item, modifierGroups, channelSlug, onCon
             onClick={handleConfirm}
             disabled={!canConfirm}
             className="w-full h-12 text-base font-semibold rounded-xl"
-            style={canConfirm ? { background: "oklch(0.38 0.08 50)", color: "oklch(0.97 0.01 75)" } : {}}
+            style={canConfirm ? { background: "var(--primary)", color: "var(--primary-foreground)" } : {}}
           >
             เพิ่มลงออเดอร์
           </Button>

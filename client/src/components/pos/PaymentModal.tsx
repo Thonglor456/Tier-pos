@@ -133,7 +133,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                 {QUICK_AMOUNTS.map((amt) => (
                   <button key={amt} onClick={() => setCashInput(String(amt))} className="px-3 py-1.5 rounded-lg bg-muted text-sm font-medium text-foreground hover:bg-secondary transition-colors">฿{amt}</button>
                 ))}
-                <button onClick={() => setCashInput(String(total))} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" style={{ background: "oklch(0.38 0.08 50)", color: "oklch(0.97 0.01 75)" }}>พอดี</button>
+                <button onClick={() => setCashInput(String(total))} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>พอดี</button>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {["7","8","9","4","5","6","1","2","3",".","0","DEL"].map((k) => (
@@ -199,7 +199,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
             onClick={handlePay}
             disabled={!canPay || createOrder.isPending}
             className="w-full h-12 text-base font-semibold rounded-xl"
-            style={canPay ? { background: "oklch(0.38 0.08 50)", color: "oklch(0.97 0.01 75)" } : {}}
+            style={canPay ? { background: "var(--primary)", color: "var(--primary-foreground)" } : {}}
           >
             {createOrder.isPending ? "กำลังบันทึก..." : "ยืนยันการชำระเงิน"}
           </Button>

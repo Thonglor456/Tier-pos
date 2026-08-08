@@ -76,7 +76,7 @@ export default function ProductGrid({ items, channelSlug, onPress }: Props) {
             </div>
             <div className="p-2.5 flex flex-col gap-0.5">
               <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">{item.name}</p>
-              <p className="text-sm font-bold mt-0.5" style={{ color: "oklch(0.38 0.08 50)" }}>
+              <p className="text-sm font-bold mt-0.5" style={{ color: "var(--primary)" }}>
                 {getDisplayPrice(item, channelSlug)}
               </p>
             </div>
