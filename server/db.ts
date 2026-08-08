@@ -16,6 +16,7 @@ import {
   storeSettings,
   users,
 } from "../drizzle/schema";
+import { branches } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -128,6 +129,7 @@ export type CreateOrderInput = {
   changeAmount?: number;
   vatAmount?: number;
   staffId?: number;
+  branchId?: number;
   items: Array<{
     itemId: number;
     variantId: number;
@@ -155,6 +157,7 @@ export async function createOrder(input: CreateOrderInput) {
     changeAmount: input.changeAmount != null ? String(input.changeAmount) : null,
     vatAmount: input.vatAmount != null ? String(input.vatAmount) : "0",
     staffId: input.staffId ?? null,
+    branchId: input.branchId ?? null,
   });
   const [newOrder] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
   if (!newOrder) throw new Error("Failed to create order");
@@ -212,7 +215,7 @@ export async function getOrderWithItems(orderId: number) {
   return { ...order, items: oiWithMods };
 }
 
-export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: string; status?: "completed" | "cancelled"; staffId?: number; limit?: number; offset?: number }) {
+export async function getOrders(opts: { startDate?: Date; endDate?: Date; channel?: string; status?: "completed" | "cancelled"; staffId?: number; branchId?: number; limit?: number; offset?: number }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
@@ -226,6 +229,7 @@ export async function getOrders(opts: { startDate?: Date; endDate?: Date; channe
   if (opts.channel) conditions.push(eq(orders.salesChannel, opts.channel));
   if (opts.status) conditions.push(eq(orders.status, opts.status));
   if (opts.staffId) conditions.push(eq(orders.staffId, opts.staffId));
+  if (opts.branchId) conditions.push(eq(orders.branchId, opts.branchId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
 }
@@ -470,6 +474,29 @@ export async function deleteModifierOption(id: number) {
   if (!db) throw new Error("DB not available");
   await db.delete(modifierOptions).where(eq(modifierOptions.id, id));
 }
+// ─── Branches ─────────────────────────────────────────────────────────────────
+export async function getBranches() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(branches).orderBy(branches.id);
+}
+export async function upsertBranch(input: { id?: number; name: string; address?: string; phone?: string; isActive: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (input.id) {
+    await db.update(branches).set({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive }).where(eq(branches.id, input.id));
+    return input.id;
+  } else {
+    const [result] = await db.insert(branches).values({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive });
+    return (result as { insertId: number }).insertId;
+  }
+}
+export async function deleteBranch(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(branches).where(eq(branches.id, id));
+}
+
 export async function cancelOrderDirect(orderId: number, cancelReason: string) {
   const db = await getDb();
   if (!db) return;

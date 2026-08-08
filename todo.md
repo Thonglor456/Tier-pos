@@ -75,3 +75,16 @@
 - [x] Fix: getOrders endDate ตีความเป็น 00:00:00 ทำให้บิลหายในหน้ารายงาน
 - [x] Fix: ReportsScreen ส่ง endDate ให้ครอบคลุมสิ้นวัน 23:59:59.999
 - [x] Verify: ปุ่มยกเลิกบิลในหน้ารายงาน — popup ยืนยัน ไม่ต้อง PIN, เปลี่ยนสถานะเป็น cancelled ไม่ลบ
+
+## Phase 9: Logo & Branch Feature
+- [x] Upload Tier Coffee logo (real brand logo) to webdev static storage
+- [x] Update Header to show real logo instead of coffee cup icon
+- [x] Update Staff Login screen to show real logo
+- [x] DB: branches table (id, name, address, isActive)
+- [x] Backend: branches router (CRUD)
+- [x] Settings: branch management page (add/edit/delete branches)
+- [x] Settings: select active branch for this device (stored in localStorage via BranchContext)
+- [x] Header: show current branch name next to logo
+- [x] StaffLoginScreen: show current branch name
+- [x] Reports: filter by branch
+- [x] Orders: record branch_id per order

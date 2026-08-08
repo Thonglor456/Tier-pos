@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { StaffProvider, useStaff } from "./contexts/StaffContext";
+import { BranchProvider } from "./contexts/BranchContext";
 import StaffLoginScreen from "./pages/StaffLoginScreen";
 import POSScreen from "./pages/POSScreen";
 import AdminScreen from "./pages/AdminScreen";
@@ -30,12 +31,14 @@ function App() {
   return (
     <ErrorBoundary>
       <StaffProvider>
-        <ThemeProvider defaultTheme="light">
-          <TooltipProvider>
-            <Toaster position="top-center" richColors />
-            <AppRoutes />
-          </TooltipProvider>
-        </ThemeProvider>
+        <BranchProvider>
+          <ThemeProvider defaultTheme="light">
+            <TooltipProvider>
+              <Toaster position="top-center" richColors />
+              <AppRoutes />
+            </TooltipProvider>
+          </ThemeProvider>
+        </BranchProvider>
       </StaffProvider>
     </ErrorBoundary>
   );

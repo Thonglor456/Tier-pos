@@ -126,6 +126,7 @@ export const orders = mysqlTable("orders", {
   changeAmount: decimal("changeAmount", { precision: 10, scale: 2 }),
   vatAmount: decimal("vatAmount", { precision: 10, scale: 2 }).default("0"),
   staffId: int("staffId"),
+  branchId: int("branchId"),
   cancelledBy: varchar("cancelledBy", { length: 100 }),
   cancelReason: text("cancelReason"),
   cancelledAt: timestamp("cancelledAt"),
@@ -190,3 +191,14 @@ export const salesChannels = mysqlTable("sales_channels", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type SalesChannel = typeof salesChannels.$inferSelect;
+
+export const branches = mysqlTable("branches", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  address: text("address"),
+  phone: varchar("phone", { length: 20 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Branch = typeof branches.$inferSelect;
+export type InsertBranch = typeof branches.$inferInsert;

@@ -32,6 +32,7 @@ import {
   verifyStaffPin,
 } from "./db";
 import { getSessionCookieOptions as _getCookieOpts } from "./_core/cookies";
+import { getBranches, upsertBranch, deleteBranch } from "./db";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
@@ -66,6 +67,7 @@ export const appRouter = router({
         changeAmount: z.number().optional(),
         vatAmount: z.number().optional(),
         staffId: z.number().optional(),
+        branchId: z.number().optional(),
         items: z.array(z.object({
           itemId: z.number(),
           variantId: z.number(),
@@ -111,16 +113,18 @@ export const appRouter = router({
         channel: z.string().optional(),
         status: z.enum(["completed", "cancelled"]).optional(),
         staffId: z.number().optional(),
+        branchId: z.number().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
       }).optional())
-      .query(({ input }) => getOrders({
+        .query(({ input }) => getOrders({
         startDate: input?.startDate ? new Date(input.startDate) : undefined,
         endDate: input?.endDate ? new Date(input.endDate) : undefined,
         channel: input?.channel,
         status: input?.status,
         limit: input?.limit,
         offset: input?.offset,
+        branchId: input?.branchId,
       })),
 
     dailySummary: publicProcedure
@@ -213,6 +217,16 @@ export const appRouter = router({
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteSalesChannel(input.id)),
+  }),
+  // ─── Branches ────────────────────────────────────────────────────────────────
+  branches: router({
+    list: publicProcedure.query(() => getBranches()),
+    upsert: publicProcedure
+      .input(z.object({ id: z.number().optional(), name: z.string().min(1), address: z.string().optional(), phone: z.string().optional(), isActive: z.boolean() }))
+      .mutation(({ input }) => upsertBranch(input)),
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteBranch(input.id)),
   }),
 });
 

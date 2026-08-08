@@ -16,6 +16,7 @@ export default function ReportsScreen() {
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "cancelled">("all");
+  const [filterBranch, setFilterBranch] = useState<number | "all">("all");
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
@@ -25,6 +26,7 @@ export default function ReportsScreen() {
 
   const { data: summary } = trpc.orders.dailySummary.useQuery({ date: selectedDate });
   const { data: channels = [] } = trpc.channels.list.useQuery();
+  const { data: branches = [] } = trpc.branches.list.useQuery();
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
   const { data: orders = [] } = trpc.orders.list.useQuery({
     startDate: `${selectedDate}T00:00:00.000`,
@@ -32,6 +34,7 @@ export default function ReportsScreen() {
     channel: filterChannel !== "all" ? filterChannel : undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
     staffId: filterStaff !== "all" ? filterStaff : undefined,
+    branchId: filterBranch !== "all" ? filterBranch : undefined,
     limit: 200,
   });
 
@@ -281,11 +284,17 @@ export default function ReportsScreen() {
               <option value="all">ทุกพนักงาน</option>
               {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "completed" | "cancelled")} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "all" | "completed" | "cancelled")} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
               <option value="all">ทุกสถานะ</option>
               <option value="completed">สำเร็จ</option>
               <option value="cancelled">ยกเลิก</option>
             </select>
+            {branches.length > 0 && (
+              <select value={filterBranch} onChange={(e) => setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+                <option value="all">ทุกสาขา</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

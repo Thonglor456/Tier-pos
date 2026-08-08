@@ -2,11 +2,14 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
 import { toast } from "sonner";
-import { Coffee, Delete } from "lucide-react";
+import { Delete } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBranch } from "@/contexts/BranchContext";
 
 export default function StaffLoginScreen() {
   const { setCurrentStaff } = useStaff();
+  const { currentBranch } = useBranch();
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -59,11 +62,17 @@ export default function StaffLoginScreen() {
     <div className="min-h-screen bg-[#1a0f0a] flex flex-col items-center justify-center p-6">
       {/* Logo */}
       <div className="flex flex-col items-center mb-10">
-        <div className="w-20 h-20 rounded-full bg-[#5c3d2e] flex items-center justify-center mb-4 shadow-2xl">
-          <Coffee className="w-10 h-10 text-[#d4a96a]" />
+        <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-2xl bg-black flex-shrink-0">
+          <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-3xl font-bold text-[#d4a96a] tracking-wide">Tier Coffee</h1>
-        <p className="text-[#a07850] text-sm mt-1">Point of Sale</p>
+        {currentBranch ? (
+          <div className="flex items-center gap-1 text-[#a07850] text-sm mt-1">
+            <MapPin className="w-3.5 h-3.5" /><span>{currentBranch.name}</span>
+          </div>
+        ) : (
+          <p className="text-[#a07850] text-sm mt-1">Point of Sale</p>
+        )}
       </div>
 
       <div className="w-full max-w-md bg-[#2d1a0e] rounded-3xl shadow-2xl border border-[#5c3d2e]/30 overflow-hidden">
@@ -176,4 +185,3 @@ export default function StaffLoginScreen() {
     </div>
   );
 }
-

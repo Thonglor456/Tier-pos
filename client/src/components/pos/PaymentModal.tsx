@@ -10,13 +10,14 @@ interface Props {
   channelSlug: string;
   total: number;
   staffId?: number;
+  branchId?: number;
   onSuccess: () => void;
   onClose: () => void;
 }
 
 const QUICK_AMOUNTS = [20, 50, 100, 500, 1000];
 
-export default function PaymentModal({ cart, channelSlug, total, staffId, onSuccess, onClose }: Props) {
+export default function PaymentModal({ cart, channelSlug, total, staffId, branchId, onSuccess, onClose }: Props) {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [cashInput, setCashInput] = useState("");
   const [transferConfirmed, setTransferConfirmed] = useState(false);
@@ -44,13 +45,14 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, onSucc
   }, [cashInput]);
 
   const handlePay = useCallback(() => {
-    createOrder.mutate({
+      createOrder.mutate({
       salesChannel: channelSlug,
       paymentMethod: method,
       totalAmount: total,
       cashReceived: method === "cash" ? cashReceived : undefined,
       changeAmount: method === "cash" ? change : undefined,
       staffId,
+      branchId,
       items: cart.map((item) => ({
         itemId: item.itemId,
         variantId: item.variantId,
@@ -206,4 +208,3 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, onSucc
     </div>
   );
 }
-

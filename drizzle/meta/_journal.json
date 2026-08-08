@@ -22,6 +22,20 @@
       "when": 1786182063622,
       "tag": "0002_little_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1786188399080,
+      "tag": "0003_crazy_wolfsbane",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786188438658,
+      "tag": "0004_calm_lockjaw",
+      "breakpoints": true
     }
   ]
 }

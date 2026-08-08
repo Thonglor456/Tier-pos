@@ -11,9 +11,11 @@ import PaymentModal from "@/components/pos/PaymentModal";
 import CancelPinModal from "@/components/pos/CancelPinModal";
 import POSHeader from "@/components/pos/POSHeader";
 import { useStaff } from "@/contexts/StaffContext";
+import { useBranch } from "@/contexts/BranchContext";
 
 export default function POSScreen() {
   const { currentStaff } = useStaff();
+  const { currentBranch } = useBranch();
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const [channelSlug, setChannelSlug] = useState<string>("walkin");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -168,6 +170,7 @@ export default function POSScreen() {
           channelSlug={channelSlug}
           total={cartTotal}
           staffId={currentStaff?.id}
+          branchId={currentBranch?.id}
           onSuccess={handlePaymentSuccess}
           onClose={() => setShowPayment(false)}
         />
@@ -183,4 +186,3 @@ export default function POSScreen() {
     </div>
   );
 }
-

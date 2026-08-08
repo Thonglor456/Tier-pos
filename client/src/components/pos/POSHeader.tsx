@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, Coffee, ShoppingCart, LogOut } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
+import { useBranch } from "@/contexts/BranchContext";
 
 interface Props {
   channelSlug: string;
@@ -34,15 +36,22 @@ const CHANNEL_COLORS: Record<string, string> = {
 
 export default function POSHeader({ channelSlug, channels, onChannelChange, cartCount }: Props) {
   const { currentStaff, logout } = useStaff();
+  const { currentBranch } = useBranch();
   return (
     <header className="flex items-center justify-between px-5 py-2.5 bg-card border-b border-border shrink-0 shadow-sm">
       <div className="flex items-center gap-2.5 min-w-[160px]">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm" style={{ background: "oklch(0.38 0.08 50)" }}>
-          <Coffee className="w-4.5 h-4.5 text-white" />
+        <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm bg-black flex-shrink-0">
+          <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
         </div>
         <div>
           <div className="text-base font-bold text-foreground leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</div>
-          <div className="text-[10px] text-muted-foreground leading-none">Point of Sale</div>
+          {currentBranch ? (
+            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground leading-none">
+              <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
+            </div>
+          ) : (
+            <div className="text-[10px] text-muted-foreground leading-none">Point of Sale</div>
+          )}
         </div>
       </div>
 
@@ -93,4 +102,3 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
     </header>
   );
 }
-

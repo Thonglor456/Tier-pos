@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
 import { toast } from "sonner";
@@ -7,14 +7,16 @@ import {
   Store, Percent, Clock, Layers, ShoppingBag,
   Plus, Trash2, Edit2, Check, X, ChevronLeft, Upload
 } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { BranchContext } from "@/contexts/BranchContext";
 
-type Tab = "shop" | "vat" | "hours" | "channels" | "modifiers";
+type Tab = "shop" | "vat" | "hours" | "channels" | "modifiers" | "branches";
 
 export default function SettingsScreen() {
   const [, navigate] = useLocation();
@@ -39,7 +41,8 @@ export default function SettingsScreen() {
     { id: "vat", label: "ภาษี (VAT)", icon: <Percent className="w-4 h-4" /> },
     { id: "hours", label: "เวลาร้าน", icon: <Clock className="w-4 h-4" /> },
     { id: "channels", label: "ช่องทางขาย", icon: <ShoppingBag className="w-4 h-4" /> },
-    { id: "modifiers", label: "ตัวเลือกเพิ่มเติม", icon: <Layers className="w-4 h-4" /> },
+  { id: "modifiers", label: "ตัวเลือกเพิ่มเติม", icon: <Layers className="w-4 h-4" /> },
+    { id: "branches", label: "สาขา", icon: <MapPin className="w-4 h-4" /> },
   ];
 
   return (
@@ -79,8 +82,104 @@ export default function SettingsScreen() {
           {activeTab === "hours" && <HoursSection />}
           {activeTab === "channels" && <ChannelsSection />}
           {activeTab === "modifiers" && <ModifiersSection />}
+          {activeTab === "branches" && <BranchesSection />}
         </main>
       </div>
+    </div>
+  );
+}
+
+// ─── Branches ────────────────────────────────────────────────────────────────
+function BranchesSection() {
+  const branchCtx = useContext(BranchContext);
+  const { data: branchesList = [], refetch } = trpc.branches.list.useQuery();
+  const upsertMutation = trpc.branches.upsert.useMutation({
+    onSuccess: () => { toast.success("บันทึกสาขาแล้ว"); refetch(); setEditBranch(null); setShowForm(false); },
+  });
+  const deleteMutation = trpc.branches.delete.useMutation({
+    onSuccess: () => { toast.success("ลบสาขาแล้ว"); refetch(); },
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [editBranch, setEditBranch] = useState<{ id?: number; name: string; address: string; phone: string; isActive: boolean } | null>(null);
+
+  const openAdd = () => { setEditBranch({ name: "", address: "", phone: "", isActive: true }); setShowForm(true); };
+  const openEdit = (b: { id: number; name: string; address: string | null; phone: string | null; isActive: boolean }) => {
+    setEditBranch({ id: b.id, name: b.name, address: b.address ?? "", phone: b.phone ?? "", isActive: b.isActive });
+    setShowForm(true);
+  };
+  const handleSave = () => {
+    if (!editBranch || !editBranch.name.trim()) return;
+    upsertMutation.mutate({ id: editBranch.id, name: editBranch.name, address: editBranch.address, phone: editBranch.phone, isActive: editBranch.isActive });
+  };
+  const handleSelectBranch = (b: { id: number; name: string }) => {
+    branchCtx?.setCurrentBranch({ id: b.id, name: b.name });
+    toast.success(`เลือกสาขา "${b.name}" แล้ว`);
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-[#3d2415]">จัดการสาขา</h2>
+          <p className="text-sm text-[#a07850] mt-1">สาขาที่ใช้งานอยู่: <strong>{branchCtx?.currentBranch?.name ?? "ยังไม่ได้เลือก"}</strong></p>
+        </div>
+        <Button onClick={openAdd} className="bg-[#5c3d2e] hover:bg-[#3d2415] text-white gap-2">
+          <Plus className="w-4 h-4" /> เพิ่มสาขา
+        </Button>
+      </div>
+      <div className="space-y-3">
+        {branchesList.map((branch) => {
+          const isSelected = branchCtx?.currentBranch?.id === branch.id;
+          return (
+            <div key={branch.id} className={cn("bg-white rounded-2xl border p-4 flex items-center gap-4 transition-all", isSelected ? "border-[#5c3d2e] ring-2 ring-[#5c3d2e]/20" : "border-[#e8d5b7]")}>
+              <div className="w-10 h-10 rounded-xl bg-[#f5ede0] flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-[#5c3d2e]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-[#3d2415]">{branch.name}</p>
+                  {isSelected && <span className="text-xs bg-[#5c3d2e] text-white px-2 py-0.5 rounded-full">ใช้งานอยู่</span>}
+                  {!branch.isActive && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">ปิดใช้งาน</span>}
+                </div>
+                {branch.address && <p className="text-sm text-[#a07850] truncate">{branch.address}</p>}
+                {branch.phone && <p className="text-sm text-[#a07850]">{branch.phone}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                {!isSelected && (
+                  <Button onClick={() => handleSelectBranch(branch)} size="sm" variant="outline" className="text-[#5c3d2e] border-[#5c3d2e] hover:bg-[#f5ede0] text-xs">
+                    เลือกสาขานี้
+                  </Button>
+                )}
+                <button onClick={() => openEdit(branch)} className="p-2 rounded-lg hover:bg-[#f5ede0] text-[#5c3d2e] transition-colors"><Edit2 className="w-4 h-4" /></button>
+                <button onClick={() => { if (confirm(`ลบสาขา "${branch.name}" ใช่ไหม?`)) deleteMutation.mutate({ id: branch.id }); }} className="p-2 rounded-lg hover:bg-red-50 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          );
+        })}
+        {branchesList.length === 0 && (
+          <div className="text-center py-12 text-[#a07850]">
+            <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p>ยังไม่มีสาขา กดปุ่ม "เพิ่มสาขา" เพื่อเริ่มต้น</p>
+          </div>
+        )}
+      </div>
+      <Dialog open={showForm} onOpenChange={(o) => { if (!o) { setShowForm(false); setEditBranch(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editBranch?.id ? "แก้ไขสาขา" : "เพิ่มสาขาใหม่"}</DialogTitle></DialogHeader>
+          {editBranch && (
+            <div className="space-y-4 pt-2">
+              <div><Label>ชื่อสาขา *</Label><Input value={editBranch.name} onChange={(e) => setEditBranch({ ...editBranch, name: e.target.value })} placeholder="เช่น สาขาหลัก, สาขาสยาม" className="mt-1" /></div>
+              <div><Label>ที่อยู่</Label><Input value={editBranch.address} onChange={(e) => setEditBranch({ ...editBranch, address: e.target.value })} placeholder="ที่อยู่สาขา" className="mt-1" /></div>
+              <div><Label>เบอร์โทร</Label><Input value={editBranch.phone} onChange={(e) => setEditBranch({ ...editBranch, phone: e.target.value })} placeholder="เบอร์โทรสาขา" className="mt-1" /></div>
+              <div className="flex items-center gap-3"><Switch checked={editBranch.isActive} onCheckedChange={(v) => setEditBranch({ ...editBranch, isActive: v })} /><Label>เปิดใช้งาน</Label></div>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" onClick={() => { setShowForm(false); setEditBranch(null); }} className="flex-1">ยกเลิก</Button>
+                <Button onClick={handleSave} disabled={!editBranch.name.trim() || upsertMutation.isPending} className="flex-1 bg-[#5c3d2e] hover:bg-[#3d2415] text-white">บันทึก</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
