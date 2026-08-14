@@ -149,3 +149,9 @@
 - [x] ตรวจสอบสิทธิ์ GitHub อีกครั้งหลังผู้ใช้เชื่อมบัญชีสำเร็จ
 - [x] ให้ผู้ใช้เปิดสิทธิ์ GitHub จากแผงจัดการ Manus แทนการตั้งค่าในเว็บไซต์ GitHub
 - [x] ส่งคำขอเปิด GitHub connector ให้ผู้ใช้อนุมัติจากการยืนยันในระบบ
+
+## Phase 18: GitHub Actions CI
+- [x] ตรวจสอบคำสั่ง TypeScript และ Vitest ที่ใช้กับโปรเจกต์
+- [x] สร้าง GitHub Actions workflow ให้รันเมื่อ push และ pull request
+- [ ] ตรวจสอบ workflow แล้ว push ไปยัง GitHub
+- [ ] ยืนยันผลการรัน CI บน GitHub และบันทึก checkpoint
