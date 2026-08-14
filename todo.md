@@ -143,8 +143,8 @@
 
 ## Phase 17: GitHub Publication
 - [x] ตรวจสอบการเชื่อมต่อและรีโพซิทอรี GitHub ปลายทาง
-- [ ] ส่งโค้ด Tier Coffee POS เวอร์ชันล่าสุดขึ้น GitHub
-- [ ] ยืนยัน commit และลิงก์รีโพซิทอรีบน GitHub
+- [x] ส่งโค้ด Tier Coffee POS เวอร์ชันล่าสุดขึ้น GitHub
+- [x] ยืนยัน commit และลิงก์รีโพซิทอรีบน GitHub
 - [x] ใช้รีโพซิทอรีปลายทาง https://github.com/Thonglor456/Tier-pos ตามที่ผู้ใช้สร้างไว้
 - [x] ตรวจสอบสิทธิ์ GitHub อีกครั้งหลังผู้ใช้เชื่อมบัญชีสำเร็จ
 - [x] ให้ผู้ใช้เปิดสิทธิ์ GitHub จากแผงจัดการ Manus แทนการตั้งค่าในเว็บไซต์ GitHub
