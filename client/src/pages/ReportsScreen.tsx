@@ -2,15 +2,16 @@ import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download, CupSoda } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download, CupSoda, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useStaff } from "@/contexts/StaffContext";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
+import { getDateRangeLength, shiftDateRange } from "@/lib/dateRangeUtils";
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "เงินสด",
@@ -23,6 +24,14 @@ const PAYMENT_LABELS_EN: Record<string, string> = {
   transfer: "Bank Transfer",
   thai_chuay_thai: "Thai Chuay Thai",
 };
+
+function formatDateRangeLabel(range: DateRange) {
+  if (!range.from) return "เลือกวันที่";
+  if (!range.to || range.from.toDateString() === range.to.toDateString()) {
+    return format(range.from, "dd/MM/yyyy");
+  }
+  return `${format(range.from, "dd/MM/yyyy")} – ${format(range.to, "dd/MM/yyyy")}`;
+}
 
 export default function ReportsScreen() {
   const today = useMemo(() => new Date(), []);
@@ -43,7 +52,8 @@ export default function ReportsScreen() {
     );
   }
 
-  const [calOpen, setCalOpen] = useState(false);
+  const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
+  const [draftDateRange, setDraftDateRange] = useState<DateRange>(() => ({ from: new Date(), to: new Date() }));
   const [filterChannel, setFilterChannel] = useState<string>("all");
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
@@ -196,18 +206,33 @@ export default function ReportsScreen() {
     downloadFile(csv, filename);
     toast.success(`Export สำเร็จ: ${filteredOrders.length} รายการ`);
   }, [filteredOrders, staffList, channels, branches, dateRange, today]);
-  const setPreset = (from: Date, to: Date) => {
-    setDateRange({ from, to });
-    setCalOpen(false);
-  };
+  const dateLabel = useMemo(() => formatDateRangeLabel(dateRange), [dateRange]);
+  const selectedDateCount = useMemo(() => getDateRangeLength(dateRange, today), [dateRange, today]);
 
-  const dateLabel = useMemo(() => {
-    if (!dateRange.from) return "เลือกวันที่";
-    if (!dateRange.to || dateRange.from.toDateString() === dateRange.to.toDateString()) {
-      return format(dateRange.from, "dd/MM/yyyy");
-    }
-    return `${format(dateRange.from, "dd/MM/yyyy")} – ${format(dateRange.to, "dd/MM/yyyy")}`;
+  const openDatePicker = useCallback(() => {
+    setDraftDateRange(dateRange);
+    setDateDrawerOpen(true);
   }, [dateRange]);
+
+  const applyDateRange = useCallback(() => {
+    if (!draftDateRange.from) {
+      toast.error("กรุณาเลือกวันเริ่มต้น");
+      return;
+    }
+    setDateRange({ from: draftDateRange.from, to: draftDateRange.to ?? draftDateRange.from });
+    setDateDrawerOpen(false);
+  }, [draftDateRange]);
+
+  const applyPreset = useCallback((from: Date, to: Date) => {
+    const nextRange = { from, to };
+    setDraftDateRange(nextRange);
+    setDateRange(nextRange);
+    setDateDrawerOpen(false);
+  }, []);
+
+  const moveDateRange = useCallback((offsetDays: number) => {
+    setDateRange((currentRange) => shiftDateRange(currentRange, offsetDays, today));
+  }, [today]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -272,38 +297,83 @@ export default function ReportsScreen() {
             <Download className="w-4 h-4 text-muted-foreground" />
             <span className="hidden sm:inline text-xs">Export CSV</span>
           </button>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors min-w-[160px] justify-between">
-                <CalendarRange className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="flex-1 text-center">{dateLabel}</span>
+          <button
+            onClick={() => moveDateRange(-selectedDateCount)}
+            className="size-9 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition"
+            title="ดูช่วงวันก่อนหน้า"
+            aria-label="ดูช่วงวันก่อนหน้า"
+          >
+            <ChevronLeft className="w-4 h-4 mx-auto" />
+          </button>
+          <Drawer open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
+            <DrawerTrigger asChild>
+              <button onClick={openDatePicker} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/50 bg-primary/10 text-foreground text-sm hover:bg-primary/15 active:scale-[0.98] transition min-w-[205px] justify-between">
+                <CalendarRange className="w-4 h-4 text-primary shrink-0" />
+                <span className="flex-1 text-center font-medium">{dateLabel}</span>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{selectedDateCount} วัน</span>
               </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-card border border-border shadow-2xl" align="end">
-              <div className="p-2 border-b border-border flex gap-1 flex-wrap">
-                {([
-                  { label: "วันนี้", fn: () => { const d = new Date(); setPreset(d, d); } },
-                  { label: "เมื่อวาน", fn: () => { const d = new Date(); d.setDate(d.getDate()-1); setPreset(d, d); } },
-                  { label: "7 วัน", fn: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate()-6); setPreset(from, to); } },
-                  { label: "30 วัน", fn: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate()-29); setPreset(from, to); } },
-                  { label: "เดือนนี้", fn: () => { const now = new Date(); const from = new Date(now.getFullYear(), now.getMonth(), 1); setPreset(from, now); } },
-                ] as const).map((p) => (
-                  <button key={p.label} onClick={p.fn} className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-secondary text-foreground transition-colors">{p.label}</button>
-                ))}
+            </DrawerTrigger>
+            <DrawerContent className="border-border bg-card max-h-[90vh]">
+              <div className="mx-auto w-full max-w-3xl overflow-y-auto">
+                <DrawerHeader className="px-5 pt-5 pb-3">
+                  <DrawerTitle className="text-lg">เลือกช่วงวันที่รายงาน</DrawerTitle>
+                  <DrawerDescription>แตะวันเริ่มต้นและวันสิ้นสุด หรือเลือกช่วงที่ใช้บ่อยด้านล่าง</DrawerDescription>
+                </DrawerHeader>
+                <div className="px-5 pb-4">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {[
+                      { label: "วันนี้", getRange: () => { const d = new Date(); return { from: d, to: d }; } },
+                      { label: "เมื่อวาน", getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); return { from: d, to: d }; } },
+                      { label: "7 วันล่าสุด", getRange: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 6); return { from, to }; } },
+                      { label: "30 วันล่าสุด", getRange: () => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - 29); return { from, to }; } },
+                      { label: "เดือนนี้", getRange: () => { const to = new Date(); return { from: new Date(to.getFullYear(), to.getMonth(), 1), to }; } },
+                      { label: "เดือนที่แล้ว", getRange: () => { const now = new Date(); return { from: new Date(now.getFullYear(), now.getMonth() - 1, 1), to: new Date(now.getFullYear(), now.getMonth(), 0) }; } },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => { const range = preset.getRange(); applyPreset(range.from, range.to); }}
+                        className="min-h-11 rounded-xl border border-border bg-background px-2 text-xs font-medium text-foreground hover:border-primary/60 hover:bg-primary/10 active:scale-95 transition"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 rounded-2xl border border-border bg-background p-2 flex justify-center">
+                    <Calendar
+                      mode="range"
+                      selected={draftDateRange}
+                      onSelect={(range) => range && setDraftDateRange(range)}
+                      numberOfMonths={2}
+                      defaultMonth={draftDateRange.from}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <DrawerFooter className="border-t border-border bg-card px-5 pb-5 sm:flex-row sm:justify-end">
+                  <button
+                    onClick={() => { const d = new Date(); setDraftDateRange({ from: d, to: d }); }}
+                    className="min-h-11 rounded-xl border border-border px-5 text-sm font-medium text-foreground hover:bg-muted active:scale-95 transition"
+                  >
+                    ล้างเป็นวันนี้
+                  </button>
+                  <button
+                    onClick={applyDateRange}
+                    className="min-h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition"
+                  >
+                    ใช้ช่วงวันที่นี้
+                  </button>
+                </DrawerFooter>
               </div>
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={(range) => {
-                  if (range) {
-                    setDateRange(range);
-                    if (range.from && range.to) setCalOpen(false);
-                  }
-                }}
-                numberOfMonths={1}
-              />
-            </PopoverContent>
-          </Popover>
+            </DrawerContent>
+          </Drawer>
+          <button
+            onClick={() => moveDateRange(selectedDateCount)}
+            className="size-9 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition"
+            title="ดูช่วงวันถัดไป"
+            aria-label="ดูช่วงวันถัดไป"
+          >
+            <ChevronRight className="w-4 h-4 mx-auto" />
+          </button>
         </div>
       </header>
 
