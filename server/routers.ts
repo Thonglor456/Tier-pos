@@ -24,6 +24,7 @@ import {
   getModifierGroupsWithOptions,
   getOrderWithItems,
   getOrders,
+  getOrderQuantitySummary,
   getPosUsers,
   getSalesChannels,
   getStoreSettings,
@@ -139,6 +140,26 @@ export const appRouter = router({
     dailySummary: publicProcedure
       .input(z.object({ date: z.string() }))
       .query(({ input }) => getDailySummary(new Date(input.date))),
+
+    quantitySummary: publicProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        channel: z.string().optional(),
+        staffId: z.number().optional(),
+        branchId: z.number().optional(),
+        paymentMethod: z.enum(["cash", "transfer", "thai_chuay_thai"]).optional(),
+        status: z.enum(["completed", "cancelled"]).optional(),
+      }))
+      .query(({ input }) => getOrderQuantitySummary({
+        startDate: input.startDate ? new Date(input.startDate) : undefined,
+        endDate: input.endDate ? new Date(input.endDate) : undefined,
+        channel: input.channel,
+        staffId: input.staffId,
+        branchId: input.branchId,
+        paymentMethod: input.paymentMethod as "cash" | "transfer" | "thai_chuay_thai" | undefined,
+        status: input.status,
+      })),
   }),
 
   // ─── POS Users (PIN) ─────────────────────────────────────────────────────────

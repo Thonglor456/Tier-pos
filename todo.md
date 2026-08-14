@@ -122,8 +122,13 @@
 - [x] เพิ่ม /api/scheduled/keepalive endpoint + Heartbeat cron ทุก 5 นาที (task_uid: GWybd6pjAm9xEujdHbRD4B)
 
 ## Phase 14: Bug Fixes
-- [ ] Security: เพิ่ม manager-only guard ใน AdminScreen, ReportsScreen, DashboardScreen
-- [ ] UX: เพิ่ม toast แจ้งเตือน "กรุณาเลือกตัวเลือกที่จำเป็นให้ครบ" ใน ModifierModal
-- [ ] UX: เพิ่ม toast แจ้งเตือน "จำนวนเงินที่รับไม่พอ" ใน PaymentModal (cash)
-- [ ] i18n: แปลค่า walkin/transfer/grab/lineman เป็นภาษาไทยใน DashboardScreen
-- [ ] UX: เปลี่ยน window.confirm ลบพนักงานเป็น custom AlertDialog ใน AdminScreen
+- [x] Security: เพิ่ม manager-only guard ใน AdminScreen, ReportsScreen, DashboardScreen
+- [x] UX: เพิ่ม toast แจ้งเตือน "กรุณาเลือกตัวเลือกที่จำเป็นให้ครบ" ใน ModifierModal
+- [x] UX: เพิ่ม toast แจ้งเตือน "จำนวนเงินที่รับไม่พอ" ใน PaymentModal (cash)
+- [x] i18n: แปลค่า walkin/transfer/grab/lineman เป็นภาษาไทยใน DashboardScreen
+- [x] UX: เปลี่ยน window.confirm ลบพนักงานเป็น custom AlertDialog ใน AdminScreen
+
+## Phase 15: Quantity & Channel Breakdown
+- [x] Dashboard/Reports: แสดงจำนวนแก้วที่ขายได้ตามช่วงวันที่ที่เลือก
+- [x] Dashboard/Reports: แยกยอดขาย Grab และ LINE MAN เป็นคนละรายการอย่างชัดเจน
+- [x] ตรวจสอบข้อมูล สร้าง test ที่เกี่ยวข้อง และบันทึก checkpoint

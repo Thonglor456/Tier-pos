@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download, CupSoda } from "lucide-react";
 import { toast } from "sonner";
 import { useStaff } from "@/contexts/StaffContext";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,15 @@ export default function ReportsScreen() {
     branchId: filterBranch !== "all" ? filterBranch : undefined,
     limit: 500,
   });
+  const { data: quantitySummary } = trpc.orders.quantitySummary.useQuery({
+    startDate: startDateStr,
+    endDate: endDateStr,
+    channel: filterChannel !== "all" ? filterChannel : undefined,
+    staffId: filterStaff !== "all" ? filterStaff : undefined,
+    branchId: filterBranch !== "all" ? filterBranch : undefined,
+    paymentMethod: filterPayment !== "all" ? filterPayment as "cash" | "transfer" | "thai_chuay_thai" : undefined,
+    status: filterStatus !== "all" ? filterStatus : undefined,
+  });
 
   const cancelMutation = trpc.orders.cancelDirect.useMutation({
     onSuccess: () => {
@@ -77,6 +86,7 @@ export default function ReportsScreen() {
       setCancelReason("");
       utils.orders.list.invalidate();
       utils.orders.dailySummary.invalidate();
+      utils.orders.quantitySummary.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -127,6 +137,7 @@ export default function ReportsScreen() {
     }
     return map;
   }, [orders]);
+  const channelMetrics = quantitySummary?.channelBreakdown ?? channelBreakdown;
 
   // For range display: compute totals from orders (not dailySummary which is single-day)
   const isMultiDay = dateRange.from && dateRange.to && dateRange.from.toDateString() !== dateRange.to.toDateString();
@@ -298,10 +309,11 @@ export default function ReportsScreen() {
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: "ยอดขายรวม", value: `฿${Number(totalRevenue).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.75 0.005 260)" },
             { label: "จำนวนบิล", value: `${totalOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.52 0.18 145)" },
+            { label: "จำนวนแก้วที่ขาย", value: `${quantitySummary?.totalCups ?? 0} แก้ว`, icon: <CupSoda className="w-5 h-5" />, color: "oklch(0.62 0.12 215)" },
             { label: "สำเร็จ", value: `${completedOrders} บิล`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.52 0.22 200)" },
             { label: "ยกเลิก", value: `${cancelledOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.55 0.18 25)" },
           ].map((card) => (
@@ -355,7 +367,10 @@ export default function ReportsScreen() {
             </div>
             <div className="space-y-2">
               {channels.map((ch) => {
-                const d = channelBreakdown[ch.slug] ?? { count: 0, total: 0 };
+                const d = channelMetrics[ch.slug] ?? { orderCount: 0, count: 0, revenue: 0, total: 0, cupsSold: 0 };
+                const orderCount = "orderCount" in d ? d.orderCount : d.count;
+                const revenue = "revenue" in d ? d.revenue : d.total;
+                const cupsSold = "cupsSold" in d ? d.cupsSold : 0;
                 return (
                   <div key={ch.slug} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
                     <div className="flex items-center gap-2 text-sm text-foreground">
@@ -363,8 +378,8 @@ export default function ReportsScreen() {
                       {ch.name}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-foreground">฿{d.total.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">{d.count} บิล</p>
+                      <p className="text-sm font-bold text-foreground">฿{Number(revenue).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{orderCount} บิล · {cupsSold} แก้ว</p>
                     </div>
                   </div>
                 );

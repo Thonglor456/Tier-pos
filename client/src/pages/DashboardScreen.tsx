@@ -81,7 +81,7 @@ export default function DashboardScreen() {
 
   const paymentLabel: Record<string, string> = {
     cash: "เงินสด",
-    bank_transfer: "โอนธนาคาร",
+    transfer: "โอนธนาคาร",
     thai_chuay_thai: "ไทยช่วยไทย",
   };
   const { data: channels = [] } = trpc.channels.list.useQuery();
@@ -130,7 +130,7 @@ export default function DashboardScreen() {
     const rows = (recentOrders as RecentOrder[]).map((o) => ({
       id: o.id,
       time: new Date(o.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
-      channel: o.salesChannel,
+      channel: channelLabel(o.salesChannel),
       payment: paymentLabel[o.paymentMethod] ?? o.paymentMethod,
       total: parseFloat(String(o.totalAmount)).toFixed(2),
       status: o.status === "completed" ? "สำเร็จ" : "ยกเลิก",
@@ -140,7 +140,7 @@ export default function DashboardScreen() {
     const dateStr = formatDateForFilename(todayDate);
     downloadFile(csv, `tier_coffee_recent_orders_${dateStr}.csv`);
     toast.success(`Export บิลล่าสุด ${recentOrders.length} รายการ`);
-  }, [recentOrders, paymentLabel]);
+  }, [recentOrders, channels]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -166,13 +166,13 @@ export default function DashboardScreen() {
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">สรุปยอดวันนี้</h2>
           {loadingSummary ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[...Array(5)].map((_, i) => (
                 <div key={i} className="bg-card rounded-xl p-4 h-24 animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <KPICard
                 label="ยอดขายรวม"
                 value={fmtB(summary?.revenue ?? 0)}
@@ -186,6 +186,13 @@ export default function DashboardScreen() {
                 sub={`สำเร็จ ${summary?.completed ?? 0} / ยกเลิก ${summary?.cancelled ?? 0}`}
                 color="text-blue-400"
                 icon="🧾"
+              />
+              <KPICard
+                label="จำนวนแก้วที่ขาย"
+                value={`${fmt(summary?.cupsSold ?? 0)} แก้ว`}
+                sub="จากบิลที่สำเร็จ"
+                color="text-cyan-400"
+                icon="☕"
               />
               <KPICard
                 label="ค่าเฉลี่ยต่อบิล"
@@ -203,6 +210,30 @@ export default function DashboardScreen() {
               />
             </div>
           )}
+        </div>
+
+        {/* Sales channel summary — each platform is kept separate by its channel slug */}
+        <div className="bg-card rounded-xl p-5 border border-border">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-sm">สรุปตามช่องทางการขาย</h2>
+              <p className="text-xs text-muted-foreground mt-1">Grab และ LINE MAN แสดงยอดแยกกัน</p>
+            </div>
+            <span className="text-xs text-muted-foreground">วันนี้</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {channels.map((channel) => {
+              const detail = summary?.channelBreakdown?.[channel.slug] ?? { cupsSold: 0, orderCount: 0, revenue: 0 };
+              return (
+                <div key={channel.slug} className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <p className="text-sm font-semibold text-foreground truncate">{channel.name}</p>
+                  <p className="text-lg font-bold text-primary mt-2">{fmtB(Number(detail.revenue ?? 0))}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{detail.orderCount ?? 0} บิล · {detail.cupsSold ?? 0} แก้ว</p>
+                </div>
+              );
+            })}
+            {channels.length === 0 && <p className="text-sm text-muted-foreground">ยังไม่มีช่องทางการขาย</p>}
+          </div>
         </div>
 
         {/* Revenue Chart + Top Items */}

@@ -269,6 +269,62 @@ export async function getDailySummary(date: Date) {
   };
 }
 
+export async function getOrderQuantitySummary(opts: {
+  startDate?: Date;
+  endDate?: Date;
+  channel?: string;
+  staffId?: number;
+  branchId?: number;
+  paymentMethod?: "cash" | "transfer" | "thai_chuay_thai";
+  status?: "completed" | "cancelled";
+}) {
+  const emptySummary = {
+    totalCups: 0,
+    channelBreakdown: {} as Record<string, { cupsSold: number; orderCount: number; revenue: number }>,
+  };
+  const db = await getDb();
+  if (!db || opts.status === "cancelled") return emptySummary;
+
+  const conditions = [eq(orders.status, "completed")];
+  if (opts.startDate) conditions.push(gte(orders.createdAt, opts.startDate));
+  if (opts.endDate) {
+    const endOfDay = new Date(opts.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    conditions.push(lte(orders.createdAt, endOfDay));
+  }
+  if (opts.channel) conditions.push(eq(orders.salesChannel, opts.channel));
+  if (opts.staffId) conditions.push(eq(orders.staffId, opts.staffId));
+  if (opts.branchId) conditions.push(eq(orders.branchId, opts.branchId));
+  if (opts.paymentMethod) conditions.push(eq(orders.paymentMethod, opts.paymentMethod));
+
+  const completedOrders = await db.select().from(orders).where(and(...conditions));
+  if (completedOrders.length === 0) return emptySummary;
+
+  const channelBreakdown: Record<string, { cupsSold: number; orderCount: number; revenue: number }> = {};
+  const channelByOrderId = new Map<number, string>();
+  for (const order of completedOrders) {
+    const channel = order.salesChannel || "walkin";
+    channelByOrderId.set(order.id, channel);
+    if (!channelBreakdown[channel]) channelBreakdown[channel] = { cupsSold: 0, orderCount: 0, revenue: 0 };
+    channelBreakdown[channel]!.orderCount += 1;
+    channelBreakdown[channel]!.revenue += parseFloat(String(order.totalAmount));
+  }
+
+  const orderIds = completedOrders.map((order) => order.id);
+  const soldItems = await db.select({ orderId: orderItems.orderId, quantity: orderItems.quantity })
+    .from(orderItems)
+    .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
+
+  let totalCups = 0;
+  for (const item of soldItems) {
+    const quantity = item.quantity ?? 0;
+    totalCups += quantity;
+    const channel = channelByOrderId.get(item.orderId);
+    if (channel && channelBreakdown[channel]) channelBreakdown[channel]!.cupsSold += quantity;
+  }
+  return { totalCups, channelBreakdown };
+}
+
 // ─── POS Users (PIN) ──────────────────────────────────────────────────────────
 export async function verifyManagerPin(pin: string) {
   const db = await getDb();
@@ -511,7 +567,11 @@ export async function cancelOrderDirect(orderId: number, cancelReason: string) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export async function getDashboardTodaySummary() {
   const db = await getDb();
-  if (!db) return { revenue: 0, orders: 0, avgOrderValue: 0, cancelled: 0, completed: 0 };
+  if (!db) return {
+    revenue: 0, orders: 0, avgOrderValue: 0, cancelled: 0, completed: 0,
+    cupsSold: 0,
+    channelBreakdown: {} as Record<string, { cupsSold: number; orderCount: number; revenue: number }>,
+  };
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -519,12 +579,36 @@ export async function getDashboardTodaySummary() {
   const completed = rows.filter((r) => r.status === "completed");
   const cancelled = rows.filter((r) => r.status === "cancelled");
   const revenue = completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0);
+  const channelBreakdown: Record<string, { cupsSold: number; orderCount: number; revenue: number }> = {};
+  const channelByOrderId = new Map<number, string>();
+  for (const order of completed) {
+    const channel = order.salesChannel || "walkin";
+    channelByOrderId.set(order.id, channel);
+    if (!channelBreakdown[channel]) channelBreakdown[channel] = { cupsSold: 0, orderCount: 0, revenue: 0 };
+    channelBreakdown[channel]!.orderCount += 1;
+    channelBreakdown[channel]!.revenue += parseFloat(String(order.totalAmount));
+  }
+  let cupsSold = 0;
+  const orderIds = completed.map((order) => order.id);
+  if (orderIds.length > 0) {
+    const soldItems = await db.select({ orderId: orderItems.orderId, quantity: orderItems.quantity })
+      .from(orderItems)
+      .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
+    for (const item of soldItems) {
+      const quantity = item.quantity ?? 0;
+      cupsSold += quantity;
+      const channel = channelByOrderId.get(item.orderId);
+      if (channel && channelBreakdown[channel]) channelBreakdown[channel]!.cupsSold += quantity;
+    }
+  }
   return {
     revenue,
     orders: rows.length,
     completed: completed.length,
     cancelled: cancelled.length,
     avgOrderValue: completed.length > 0 ? revenue / completed.length : 0,
+    cupsSold,
+    channelBreakdown,
   };
 }
 

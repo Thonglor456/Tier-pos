@@ -25,6 +25,14 @@ vi.mock("./db", async (importOriginal) => {
     cancelOrder: vi.fn().mockResolvedValue(undefined),
     getDailySummary: vi.fn().mockResolvedValue({ totalRevenue: 1000, walkinRevenue: 700, grabRevenue: 300, cashRevenue: 600, transferRevenue: 400, completedCount: 10, cancelledCount: 1 }),
     getOrders: vi.fn().mockResolvedValue([]),
+    getOrderQuantitySummary: vi.fn().mockResolvedValue({
+      totalCups: 18,
+      channelBreakdown: {
+        walkin: { cupsSold: 10, orderCount: 6, revenue: 450 },
+        grab: { cupsSold: 5, orderCount: 3, revenue: 325 },
+        lineman: { cupsSold: 3, orderCount: 2, revenue: 195 },
+      },
+    }),
     getPosUsers: vi.fn().mockResolvedValue([]),
     upsertPosUser: vi.fn().mockResolvedValue(undefined),
     getAllItemsAdmin: vi.fn().mockResolvedValue([]),
@@ -93,6 +101,18 @@ describe("orders router", () => {
     expect(result?.totalRevenue).toBe(1000);
     expect(result?.completedCount).toBe(10);
   });
+
+  it("returns cups sold and keeps Grab and LINE MAN as separate channels", async () => {
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.orders.quantitySummary({
+      startDate: "2026-08-01",
+      endDate: "2026-08-08",
+    });
+    expect(result.totalCups).toBe(18);
+    expect(result.channelBreakdown.grab).toEqual({ cupsSold: 5, orderCount: 3, revenue: 325 });
+    expect(result.channelBreakdown.lineman).toEqual({ cupsSold: 3, orderCount: 2, revenue: 195 });
+    expect(result.channelBreakdown.grab).not.toEqual(result.channelBreakdown.lineman);
+  });
 });
 
 describe("posUsers router - PIN verification", () => {
@@ -122,4 +142,3 @@ describe("orders router - cancel with PIN", () => {
     await expect(caller.orders.cancel({ orderId: 1, pin: "0000", cancelReason: "test" })).rejects.toThrow();
   });
 });
-
