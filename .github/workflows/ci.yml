@@ -37,7 +37,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check TypeScript
-        run: pnpm check
+        run: pnpm exec tsc --noEmit
 
       - name: Run Vitest
         run: pnpm test

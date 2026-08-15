@@ -156,3 +156,14 @@
 - [x] ตรวจสอบ workflow แล้ว push ไปยัง GitHub
 - [x] ยืนยันผลการรัน CI บน GitHub และบันทึก checkpoint
 - [x] บันทึก checkpoint ใหม่หลังยืนยัน GitHub Actions run 31777899800 ผ่านทั้งหมด
+
+## Phase 19: Claude Pull Request Workflow
+- [x] ตรวจสอบ workflow CI และข้อกำหนดสำหรับการทำงานผ่าน Pull Request
+- [x] สร้าง `.github/workflows/claude.yml` สำหรับตรวจ Pull Request และแนวทางการเรียก Claude อย่างปลอดภัย
+- [x] เพิ่มเอกสารคำสั่งและขั้นตอนให้ Claude ทำงานผ่าน branch/Pull Request
+- [x] ตรวจสอบไฟล์ ทดสอบ CI และส่งขึ้น GitHub
+- [x] แก้ CI ให้ใช้คำสั่งตรวจ TypeScript แบบไม่อยู่ใน watch mode
+- [ ] Commit และ push Claude workflow พร้อมเอกสารขึ้น GitHub
+- [ ] ยืนยันผล GitHub Actions ของ commit ล่าสุด
+- [x] ตรวจเนื้อหา CI และ Claude workflow ว่าใช้ `pnpm exec tsc --noEmit` แบบ non-watch
+- [x] ยืนยันคำสั่ง CI แบบ non-watch ด้วย TypeScript และ Vitest ในเครื่อง (13 tests ผ่าน)
