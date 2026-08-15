@@ -163,9 +163,9 @@
 - [x] เพิ่มเอกสารคำสั่งและขั้นตอนให้ Claude ทำงานผ่าน branch/Pull Request
 - [x] ตรวจสอบไฟล์ ทดสอบ CI และส่งขึ้น GitHub
 - [x] แก้ CI ให้ใช้คำสั่งตรวจ TypeScript แบบไม่อยู่ใน watch mode
-- [ ] Commit และ push Claude workflow พร้อมเอกสารขึ้น GitHub
-- [ ] ยืนยันผล GitHub Actions ของ commit ล่าสุด
+- [x] Commit และ push Claude workflow พร้อมเอกสารขึ้น GitHub
+- [x] ยืนยันผล GitHub Actions ของ commit ล่าสุด
 - [x] ตรวจเนื้อหา CI และ Claude workflow ว่าใช้ `pnpm exec tsc --noEmit` แบบ non-watch
 - [x] ยืนยันคำสั่ง CI แบบ non-watch ด้วย TypeScript และ Vitest ในเครื่อง (13 tests ผ่าน)
 - [x] เพิ่ม fallback job ที่จบสำเร็จเมื่อไม่มีคำสั่ง @claude เพื่อหลีกเลี่ยง workflow ที่ไม่มี jobs
-- [ ] ยืนยันผล GitHub Actions ของ workflow Claude หลังแก้ fallback
+- [x] ยืนยันผล GitHub Actions ของ workflow Claude หลังแก้ fallback (push ล่าสุดไม่สร้าง Claude run ว่าง และ CI ผ่าน)
