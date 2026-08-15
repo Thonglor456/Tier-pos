@@ -7,8 +7,7 @@ on:
 # The workflow is intentionally opt-in: a trusted maintainer must mention
 # @claude in a pull-request comment before the assistant can run.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   issues: read
 
 concurrency:
@@ -16,6 +15,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  no-authorized-command:
+    name: Await an authorized @claude command
+    if: >-
+      !github.event.issue.pull_request ||
+      !contains(github.event.comment.body, '@claude') ||
+      !contains(fromJSON('["OWNER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Explain why Claude did not run
+        run: |
+          echo "Claude runs only for an @claude comment on a pull request from an OWNER or COLLABORATOR."
+
   claude:
     name: Claude PR assistant
     if: >-
@@ -24,6 +38,10 @@ jobs:
       contains(fromJSON('["OWNER", "COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
 
     steps:
       - name: Run Claude Code
@@ -36,7 +54,7 @@ jobs:
             Follow the maintainer's @claude request only when it is consistent with this policy.
 
             Work only in the current pull request. Do not merge pull requests, change repository
-	            settings, modify GitHub Actions workflows, add or rotate secrets, or reveal credentials.
-	            Keep changes narrowly scoped, explain them in the pull request, and run these checks
-	            when code changes: pnpm exec tsc --noEmit and pnpm test. If either check fails, report the failure
-	            instead of claiming success.
+            settings, modify GitHub Actions workflows, add or rotate secrets, or reveal credentials.
+            Keep changes narrowly scoped, explain them in the pull request, and run these checks
+            when code changes: pnpm exec tsc --noEmit and pnpm test. If either check fails, report the failure
+            instead of claiming success.

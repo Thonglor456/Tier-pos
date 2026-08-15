@@ -167,3 +167,5 @@
 - [ ] ยืนยันผล GitHub Actions ของ commit ล่าสุด
 - [x] ตรวจเนื้อหา CI และ Claude workflow ว่าใช้ `pnpm exec tsc --noEmit` แบบ non-watch
 - [x] ยืนยันคำสั่ง CI แบบ non-watch ด้วย TypeScript และ Vitest ในเครื่อง (13 tests ผ่าน)
+- [x] เพิ่ม fallback job ที่จบสำเร็จเมื่อไม่มีคำสั่ง @claude เพื่อหลีกเลี่ยง workflow ที่ไม่มี jobs
+- [ ] ยืนยันผล GitHub Actions ของ workflow Claude หลังแก้ fallback
