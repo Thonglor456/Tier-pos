@@ -19,8 +19,26 @@ const StaffContext = createContext<StaffContextType>({
   logout: () => {},
 });
 
+const STORAGE_KEY = "tier_current_staff";
+
 export function StaffProvider({ children }: { children: React.ReactNode }) {
-  const [currentStaff, setCurrentStaff] = useState<StaffSession | null>(null);
+  const [currentStaff, setCurrentStaffState] = useState<StaffSession | null>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setCurrentStaff = (staff: StaffSession | null) => {
+    setCurrentStaffState(staff);
+    if (staff) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(staff));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
 
   const logout = () => setCurrentStaff(null);
 
@@ -34,4 +52,3 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
 export function useStaff() {
   return useContext(StaffContext);
 }
-
