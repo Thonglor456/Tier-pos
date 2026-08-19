@@ -58,9 +58,10 @@ export default function ReportsScreen() {
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "cancelled">("all");
-  const isStaffBranchLocked = currentStaff?.role === "staff" && !!currentStaff?.branchId;
+  const isBranchLocked = (currentStaff?.role === "staff" || currentStaff?.role === "manager") && !!currentStaff?.branchId;
+  const isStaffBranchLocked = isBranchLocked; // kept for compat
   const [filterBranch, setFilterBranch] = useState<number | "all">(() =>
-    currentStaff?.role === "staff" && currentStaff?.branchId ? currentStaff.branchId : "all"
+    isBranchLocked && currentStaff?.branchId ? currentStaff.branchId : "all"
   );
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -541,12 +542,11 @@ export default function ReportsScreen() {
               <option value="completed">สำเร็จ</option>
               <option value="cancelled">ยกเลิก</option>
             </select>
-            {branches.length > 0 && (
+            {branches.length > 0 && currentStaff?.role === "admin" && (
               <select
                 value={filterBranch}
-                onChange={(e) => !isStaffBranchLocked && setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))}
-                disabled={isStaffBranchLocked}
-                className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                onChange={(e) => setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))}
+                className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none"
               >
                 <option value="all">ทุกสาขา</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}

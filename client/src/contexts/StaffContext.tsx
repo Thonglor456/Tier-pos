@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from "react";
 export type StaffSession = {
   id: number;
   name: string;
-  role: "staff" | "manager";
+  role: "staff" | "manager" | "admin";
   branchId?: number | null;
 };
 

@@ -14,28 +14,34 @@ import {
 import ItemFormModal from "@/components/admin/ItemFormModal";
 import CategoryFormModal from "@/components/admin/CategoryFormModal";
 import StaffFormModal from "@/components/admin/StaffFormModal";
+import BranchFormModal from "@/components/admin/BranchFormModal";
+import { MapPin } from "lucide-react";
 
-type AdminTab = "items" | "categories" | "staff";
+type AdminTab = "items" | "categories" | "staff" | "branches";
 
 export default function AdminScreen() {
   const { currentStaff } = useStaff();
-  const isManager = currentStaff?.role === "manager";
+  const isAdmin = currentStaff?.role === "admin";
+  const isManager = currentStaff?.role === "manager" || isAdmin;
 
   const [tab, setTab] = useState<AdminTab>("items");
   const [editItemId, setEditItemId] = useState<number | null | "new">(null);
   const [editCategoryId, setEditCategoryId] = useState<number | null | "new">(null);
   const [editStaffId, setEditStaffId] = useState<number | null | "new">(null);
   const [deleteStaffId, setDeleteStaffId] = useState<number | null>(null);
+  const [editBranchId, setEditBranchId] = useState<number | null | "new">(null);
+  const [deleteBranchId, setDeleteBranchId] = useState<number | null>(null);
 
   const { data: items = [], refetch: refetchItems } = trpc.admin.items.useQuery();
   const { data: categories = [], refetch: refetchCategories } = trpc.admin.categories.useQuery();
   const { data: modifierGroups = [] } = trpc.admin.modifierGroups.useQuery();
   const { data: staffList = [], refetch: refetchStaff } = trpc.posUsers.list.useQuery();
+  const { data: branchesList = [], refetch: refetchBranches } = trpc.branches.list.useQuery();
 
   const deleteStaffTarget = staffList.find((s) => s.id === deleteStaffId);
 
-  // Guard: only manager can access admin
-  if (currentStaff?.role !== "manager") {
+  // Guard: only manager or admin can access admin
+  if (currentStaff?.role !== "manager" && currentStaff?.role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -55,16 +61,26 @@ export default function AdminScreen() {
     onSuccess: () => { toast.success("ลบพนักงานแล้ว"); refetchStaff(); },
     onError: (e) => toast.error(e.message),
   });
+  const deleteBranch = trpc.branches.delete.useMutation({
+    onSuccess: () => { toast.success("ลบสาขาแล้ว"); refetchBranches(); setDeleteBranchId(null); },
+    onError: (e) => toast.error(e.message),
+  });
+  const toggleBranch = trpc.branches.upsert.useMutation({
+    onSuccess: () => refetchBranches(),
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteBranchTarget = branchesList.find((b) => b.id === deleteBranchId);
 
   const itemsByCategory = categories.map((cat) => ({
     ...cat,
     items: items.filter((i) => i.categoryId === cat.id),
   }));
 
-  const TABS: Array<{ id: AdminTab; label: string; icon: React.ReactNode; managerOnly?: boolean }> = [
+  const TABS: Array<{ id: AdminTab; label: string; icon: React.ReactNode; adminOnly?: boolean }> = [
     { id: "items", label: "สินค้า", icon: <Coffee className="w-4 h-4" /> },
     { id: "categories", label: "หมวดหมู่", icon: <Tag className="w-4 h-4" /> },
-    { id: "staff", label: "พนักงาน", icon: <User className="w-4 h-4" />, managerOnly: true },
+    { id: "staff", label: "พนักงาน", icon: <User className="w-4 h-4" /> },
+    { id: "branches", label: "สาขา", icon: <MapPin className="w-4 h-4" />, adminOnly: true },
   ];
 
   return (
@@ -98,7 +114,7 @@ export default function AdminScreen() {
 
       {/* Mobile: horizontal tab bar */}
       <div className="sm:hidden flex border-b border-border bg-card shrink-0 overflow-x-auto">
-        {TABS.filter((t) => !t.managerOnly || isManager).map((t) => (
+        {TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -114,7 +130,7 @@ export default function AdminScreen() {
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop: sidebar */}
         <nav className="hidden sm:flex w-48 bg-card border-r border-border flex-col pt-4 gap-1 px-2 shrink-0">
-          {TABS.filter((t) => !t.managerOnly || isManager).map((t) => (
+          {TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -206,7 +222,7 @@ export default function AdminScreen() {
             </div>
           )}
 
-          {tab === "staff" && isManager && (
+          {tab === "staff" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการพนักงาน</h2>
@@ -218,15 +234,15 @@ export default function AdminScreen() {
                 {staffList.map((staff, idx) => (
                   <div key={staff.id} className={`flex items-center gap-3 px-4 py-3 ${idx < staffList.length - 1 ? "border-b border-border/50" : ""}`}>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{ background: staff.role === "manager" ? "var(--primary)" : "var(--muted-foreground)" }}>
+                      style={{ background: staff.role === "admin" ? "oklch(0.52 0.18 260)" : staff.role === "manager" ? "var(--primary)" : "var(--muted-foreground)" }}>
                       {staff.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">{staff.name}</p>
                       <p className="text-xs text-muted-foreground">PIN: {"•".repeat(staff.pinCode?.length ?? 4)}</p>
                     </div>
-                    <Badge variant={staff.role === "manager" ? "default" : "secondary"} className="text-xs">
-                      {staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
+                    <Badge variant={staff.role === "admin" ? "default" : staff.role === "manager" ? "default" : "secondary"} className="text-xs">
+                      {staff.role === "admin" ? "แอดมิน" : staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
                     </Badge>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditStaffId(staff.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
@@ -243,6 +259,39 @@ export default function AdminScreen() {
                 ))}
                 {staffList.length === 0 && (
                   <div className="px-4 py-8 text-center text-sm text-muted-foreground">ยังไม่มีพนักงาน</div>
+                )}
+              </div>
+            </div>
+          )}
+          {tab === "branches" && isAdmin && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการสาขา</h2>
+                <Button size="sm" onClick={() => setEditBranchId("new")} style={{ background: "var(--primary)", color: "white" }}>
+                  <Plus className="w-4 h-4 mr-1" /> เพิ่มสาขา
+                </Button>
+              </div>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                {branchesList.map((branch, idx) => (
+                  <div key={branch.id} className={`flex items-center gap-3 px-4 py-3 ${idx < branchesList.length - 1 ? "border-b border-border/50" : ""}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{branch.name}</p>
+                      {branch.address && <p className="text-xs text-muted-foreground truncate">{branch.address}</p>}
+                    </div>
+                    <Badge variant={branch.isActive ? "default" : "secondary"} className="text-xs">
+                      {branch.isActive ? "เปิด" : "ปิด"}
+                    </Badge>
+                    <Switch checked={branch.isActive} onCheckedChange={(v) => toggleBranch.mutate({ id: branch.id, name: branch.name, address: branch.address ?? undefined, phone: branch.phone ?? undefined, isActive: v })} />
+                    <button onClick={() => setEditBranchId(branch.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => setDeleteBranchId(branch.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {branchesList.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">ยังไม่มีสาขา</div>
                 )}
               </div>
             </div>
@@ -275,6 +324,33 @@ export default function AdminScreen() {
           onSaved={() => { setEditStaffId(null); refetchStaff(); }}
         />
       )}
+      {editBranchId !== null && (
+        <BranchFormModal
+          branchId={editBranchId === "new" ? undefined : editBranchId}
+          onClose={() => setEditBranchId(null)}
+          onSaved={() => { setEditBranchId(null); refetchBranches(); }}
+        />
+      )}
+      <AlertDialog open={deleteBranchId !== null} onOpenChange={(open) => { if (!open) setDeleteBranchId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ยืนยันการลบสาขา</AlertDialogTitle>
+            <AlertDialogDescription>
+              ต้องการลบสาขา <strong>{deleteBranchTarget?.name}</strong>?
+              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteBranchId !== null) deleteBranch.mutate({ id: deleteBranchId }); }}
+            >
+              ลบสาขา
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={deleteStaffId !== null} onOpenChange={(open) => { if (!open) setDeleteStaffId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

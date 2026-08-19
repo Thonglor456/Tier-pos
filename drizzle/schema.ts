@@ -31,7 +31,7 @@ export const posUsers = mysqlTable("pos_users", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   pinCode: varchar("pinCode", { length: 6 }).notNull(),
-  role: mysqlEnum("role", ["staff", "manager"]).default("staff").notNull(),
+  role: mysqlEnum("role", ["staff", "manager", "admin"]).default("staff").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   branchId: int("branchId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

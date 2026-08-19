@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { useStaff } from "@/contexts/StaffContext";
 
 interface Props {
   staffId?: number;
@@ -11,20 +12,24 @@ interface Props {
 }
 
 export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
+  const { currentStaff } = useStaff();
+  const currentUserIsAdmin = currentStaff?.role === "admin";
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
   const { data: branches = [] } = trpc.branches.list.useQuery();
   const existing = staffId ? staffList.find((s) => s.id === staffId) : null;
 
   const [name, setName] = useState(existing?.name ?? "");
   const [pin, setPin] = useState("");
-  const [role, setRole] = useState<"staff" | "manager">(existing?.role ?? "staff");
-  const [branchId, setBranchId] = useState<number | null>(existing?.branchId ?? null);
+  const [role, setRole] = useState<"staff" | "manager" | "admin">(existing?.role ?? "staff");
+  const [branchId, setBranchId] = useState<number | null>(
+    currentUserIsAdmin ? (existing?.branchId ?? null) : (currentStaff?.branchId ?? null)
+  );
 
   useEffect(() => {
     if (existing) {
       setName(existing.name);
-      setRole(existing.role as "staff" | "manager");
-      setBranchId(existing.branchId ?? null);
+      setRole(existing.role as "staff" | "manager" | "admin");
+      setBranchId(currentUserIsAdmin ? (existing.branchId ?? null) : (currentStaff?.branchId ?? null));
     }
   }, [existing?.id]);
 
@@ -78,7 +83,7 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">สิทธิ์</label>
             <div className="flex gap-2">
-              {(["staff", "manager"] as const).map((r) => (
+              {(currentUserIsAdmin ? (["staff", "manager", "admin"] as const) : (["staff"] as const)).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -87,7 +92,7 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
                     role === r ? "border-primary bg-primary text-primary-foreground" : "border-border text-foreground hover:border-primary/40"
                   }`}
                 >
-                  {r === "staff" ? "พนักงาน" : "ผู้จัดการ"}
+                  {r === "staff" ? "พนักงาน" : r === "manager" ? "ผู้จัดการ" : "แอดมิน"}
                 </button>
               ))}
             </div>
@@ -95,14 +100,21 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
           {branches.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">สาขาที่รับผิดชอบ</label>
-              <select
-                value={branchId ?? ""}
-                onChange={(e) => setBranchId(e.target.value === "" ? null : Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                <option value="">ทุกสาขา (ไม่จำกัด)</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              {currentUserIsAdmin ? (
+                <select
+                  value={branchId ?? ""}
+                  onChange={(e) => setBranchId(e.target.value === "" ? null : Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="">ทุกสาขา (ไม่จำกัด)</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2 rounded-lg border border-border bg-muted text-foreground text-sm">
+                  {branches.find((b) => b.id === branchId)?.name ?? "ไม่ระบุสาขา"}
+                  <span className="ml-2 text-xs text-muted-foreground">(ล็อกตามสาขาของคุณ)</span>
+                </div>
+              )}
             </div>
           )}
           <div className="flex gap-2 pt-2">

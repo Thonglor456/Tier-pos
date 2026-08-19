@@ -364,7 +364,7 @@ export async function getPosUsers() {
   return db.select().from(posUsers).orderBy(posUsers.id);
 }
 
-export async function upsertPosUser(data: { id?: number; name: string; pinCode: string; role: "staff" | "manager"; branchId?: number | null }) {
+export async function upsertPosUser(data: { id?: number; name: string; pinCode: string; role: "staff" | "manager" | "admin"; branchId?: number | null }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {

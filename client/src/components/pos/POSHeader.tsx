@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard, ChevronDown } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
 import { useBranch } from "@/contexts/BranchContext";
+import { trpc } from "@/lib/trpc";
 
 interface Props {
   channelSlug: string;
@@ -35,7 +36,21 @@ const CHANNEL_COLORS: Record<string, string> = {
 
 export default function POSHeader({ channelSlug, channels, onChannelChange, cartCount }: Props) {
   const { currentStaff, logout } = useStaff();
-  const { currentBranch } = useBranch();
+  const { currentBranch, setCurrentBranch } = useBranch();
+  const isAdmin = currentStaff?.role === "admin";
+  const { data: allBranches = [] } = trpc.branches.list.useQuery(undefined, { enabled: isAdmin });
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setBranchDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   return (
     <header className="bg-card border-b border-border shrink-0 shadow-sm">
       {/* Row 1: Logo | Clock | Nav icons */}
@@ -48,9 +63,33 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           <div className="hidden sm:block">
             <div className="text-base font-bold text-foreground leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</div>
             {currentBranch ? (
-              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground leading-none">
-                <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
-              </div>
+              isAdmin ? (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setBranchDropdownOpen((v) => !v)}
+                    className="flex items-center gap-0.5 text-[10px] text-primary leading-none hover:underline"
+                  >
+                    <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span><ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                  {branchDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[140px]">
+                      {allBranches.filter((b) => b.isActive).map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${b.id === currentBranch.id ? "text-primary font-semibold" : "text-foreground"}`}
+                        >
+                          {b.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground leading-none">
+                  <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
+                </div>
+              )
             ) : (
               <div className="text-[10px] text-muted-foreground leading-none">Point of Sale</div>
             )}
