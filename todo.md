@@ -169,3 +169,8 @@
 - [x] ยืนยันคำสั่ง CI แบบ non-watch ด้วย TypeScript และ Vitest ในเครื่อง (13 tests ผ่าน)
 - [x] เพิ่ม fallback job ที่จบสำเร็จเมื่อไม่มีคำสั่ง @claude เพื่อหลีกเลี่ยง workflow ที่ไม่มี jobs
 - [x] ยืนยันผล GitHub Actions ของ workflow Claude หลังแก้ fallback (push ล่าสุดไม่สร้าง Claude run ว่าง และ CI ผ่าน)
+
+## Phase 20: Deploy Latest GitHub Main
+- [x] ตรวจสอบ commit ล่าสุดบน GitHub main และสถานะโค้ดในโปรเจกต์
+- [x] ซิงก์ GitHub main ตรวจ TypeScript และ Vitest ก่อนเผยแพร่
+- [x] บันทึก checkpoint และเผยแพร่เวอร์ชันที่ตรงกับ GitHub main
