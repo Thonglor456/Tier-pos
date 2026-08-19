@@ -12,16 +12,19 @@ interface Props {
 
 export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
+  const { data: branches = [] } = trpc.branches.list.useQuery();
   const existing = staffId ? staffList.find((s) => s.id === staffId) : null;
 
   const [name, setName] = useState(existing?.name ?? "");
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<"staff" | "manager">(existing?.role ?? "staff");
+  const [branchId, setBranchId] = useState<number | null>(existing?.branchId ?? null);
 
   useEffect(() => {
     if (existing) {
       setName(existing.name);
       setRole(existing.role as "staff" | "manager");
+      setBranchId(existing.branchId ?? null);
     }
   }, [existing?.id]);
 
@@ -35,7 +38,7 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
     if (!name.trim()) return toast.error("กรุณากรอกชื่อ");
     if (!staffId && (pin.length < 4 || pin.length > 6)) return toast.error("PIN ต้องมี 4-6 หลัก");
     if (pin && (pin.length < 4 || pin.length > 6)) return toast.error("PIN ต้องมี 4-6 หลัก");
-    upsert.mutate({ id: staffId, name: name.trim(), pinCode: pin || (existing?.pinCode ?? ""), role });
+    upsert.mutate({ id: staffId, name: name.trim(), pinCode: pin || (existing?.pinCode ?? ""), role, branchId });
   }
 
   return (
@@ -89,6 +92,19 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
               ))}
             </div>
           </div>
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">สาขาที่รับผิดชอบ</label>
+              <select
+                value={branchId ?? ""}
+                onChange={(e) => setBranchId(e.target.value === "" ? null : Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="">ทุกสาขา (ไม่จำกัด)</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>ยกเลิก</Button>
             <Button type="submit" className="flex-1" disabled={upsert.isPending} style={{ background: "var(--primary)", color: "white" }}>

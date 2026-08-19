@@ -364,13 +364,13 @@ export async function getPosUsers() {
   return db.select().from(posUsers).orderBy(posUsers.id);
 }
 
-export async function upsertPosUser(data: { id?: number; name: string; pinCode: string; role: "staff" | "manager" }) {
+export async function upsertPosUser(data: { id?: number; name: string; pinCode: string; role: "staff" | "manager"; branchId?: number | null }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {
-    await db.update(posUsers).set({ name: data.name, pinCode: data.pinCode, role: data.role }).where(eq(posUsers.id, data.id));
+    await db.update(posUsers).set({ name: data.name, pinCode: data.pinCode, role: data.role, branchId: data.branchId ?? null }).where(eq(posUsers.id, data.id));
   } else {
-    await db.insert(posUsers).values({ name: data.name, pinCode: data.pinCode, role: data.role });
+    await db.insert(posUsers).values({ name: data.name, pinCode: data.pinCode, role: data.role, branchId: data.branchId ?? null });
   }
 }
 

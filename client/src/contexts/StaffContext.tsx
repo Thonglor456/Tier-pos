@@ -4,6 +4,7 @@ export type StaffSession = {
   id: number;
   name: string;
   role: "staff" | "manager";
+  branchId?: number | null;
 };
 
 type StaffContextType = {

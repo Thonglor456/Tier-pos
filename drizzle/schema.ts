@@ -33,6 +33,7 @@ export const posUsers = mysqlTable("pos_users", {
   pinCode: varchar("pinCode", { length: 6 }).notNull(),
   role: mysqlEnum("role", ["staff", "manager"]).default("staff").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
+  branchId: int("branchId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

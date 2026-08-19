@@ -1,0 +1,1 @@
+ALTER TABLE pos_users ADD COLUMN branchId INT NULL;

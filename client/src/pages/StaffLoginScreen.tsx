@@ -8,7 +8,8 @@ import { useBranch } from "@/contexts/BranchContext";
 
 export default function StaffLoginScreen() {
   const { setCurrentStaff } = useStaff();
-  const { currentBranch } = useBranch();
+  const { currentBranch, setCurrentBranch } = useBranch();
+  const { data: allBranches = [] } = trpc.branches.list.useQuery();
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -36,7 +37,12 @@ export default function StaffLoginScreen() {
     try {
       const result = await verifyMutation.mutateAsync({ staffId: selectedStaffId, pin });
       if (result) {
-        setCurrentStaff({ id: result.id, name: result.name, role: result.role });
+        setCurrentStaff({ id: result.id, name: result.name, role: result.role, branchId: result.branchId ?? null });
+        // Auto-set branch if staff is assigned to a specific branch
+        if (result.branchId) {
+          const assignedBranch = allBranches.find((b) => b.id === result.branchId);
+          if (assignedBranch) setCurrentBranch({ id: assignedBranch.id, name: assignedBranch.name });
+        }
         toast.success(`ยินดีต้อนรับ ${result.name}`);
       } else {
         setError("PIN ไม่ถูกต้อง กรุณาลองใหม่");

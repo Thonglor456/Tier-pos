@@ -22,6 +22,7 @@ export default function POSScreen() {
   const [pendingItem, setPendingItem] = useState<{ itemId: number; variantId?: number } | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<number | null>(null);
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   const { data: categories = [] } = trpc.menu.categories.useQuery();
   const { data: items = [] } = trpc.menu.items.useQuery({ categoryId: selectedCategoryId });
@@ -136,23 +137,78 @@ export default function POSScreen() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <POSHeader channelSlug={channelSlug} channels={channels} onChannelChange={handleChannelChange} cartCount={cartCount} />
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col flex-1 overflow-hidden min-h-0">
           <CategoryTabs categories={categories} selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
           <ProductGrid items={items} channelSlug={channelSlug} onPress={handleProductPress} />
         </div>
-        <OrderPanel
-          cart={cart}
-          channelSlug={channelSlug}
-          channelName={channelName}
-          total={cartTotal}
-          onUpdateQty={handleUpdateQty}
-          onRemove={handleRemoveItem}
-          onCheckout={() => cart.length > 0 && setShowPayment(true)}
-          onCancelOrder={(orderId: number) => setCancelTarget(orderId)}
-          onClearCart={() => setCart([])}
-        />
+        {/* Desktop only: order panel sidebar */}
+        <div className="hidden sm:block">
+          <OrderPanel
+            cart={cart}
+            channelSlug={channelSlug}
+            channelName={channelName}
+            total={cartTotal}
+            onUpdateQty={handleUpdateQty}
+            onRemove={handleRemoveItem}
+            onCheckout={() => cart.length > 0 && setShowPayment(true)}
+            onCancelOrder={(orderId: number) => setCancelTarget(orderId)}
+            onClearCart={() => setCart([])}
+          />
+        </div>
       </div>
+
+      {/* Mobile only: sticky bottom cart bar */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 sm:hidden z-40">
+          {/* Expandable cart list */}
+          {showMobileCart && (
+            <div className="bg-card border-t border-border max-h-64 overflow-y-auto">
+              {cart.map((item) => (
+                <div key={item.cartId} className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground leading-tight truncate">{item.itemName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.variantName}{item.modifiers.length > 0 && `, ${item.modifiers.map((m) => m.modifierName).join(", ")}`}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => handleUpdateQty(item.cartId, -1)} className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors">
+                      <span className="text-xs font-bold leading-none">−</span>
+                    </button>
+                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
+                    <button onClick={() => handleUpdateQty(item.cartId, 1)} className="w-6 h-6 rounded-md flex items-center justify-center bg-muted hover:bg-secondary transition-colors">
+                      <span className="text-xs font-bold leading-none">+</span>
+                    </button>
+                  </div>
+                  <span className="text-sm font-bold text-foreground shrink-0">{item.totalPrice.toLocaleString()}.-</span>
+                  <button onClick={() => handleRemoveItem(item.cartId)} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                    <span className="text-xs">✕</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Bottom bar */}
+          <div className="bg-card border-t border-border px-4 py-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.1)]">
+            <button
+              onClick={() => setShowMobileCart((v) => !v)}
+              className="flex items-center gap-2 flex-1 min-w-0"
+            >
+              <span className="relative">
+                <span className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold">{cartCount}</span>
+              </span>
+              <span className="text-sm text-muted-foreground font-medium">{showMobileCart ? "ซ่อนรายการ" : "ดูรายการ"}</span>
+              <span className="text-base font-bold text-foreground ml-auto">{cartTotal.toLocaleString()}.-</span>
+            </button>
+            <button
+              onClick={() => setShowPayment(true)}
+              className="h-11 px-5 rounded-xl font-bold text-sm text-white flex-shrink-0"
+              style={{ background: "var(--primary)" }}
+            >
+              ชำระเงิน
+            </button>
+          </div>
+        </div>
+      )}
 
       {pendingItemData && (
         <ModifierModal

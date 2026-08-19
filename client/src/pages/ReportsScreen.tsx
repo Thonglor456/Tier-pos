@@ -39,13 +39,13 @@ export default function ReportsScreen() {
   const [, navigate] = useLocation();
   const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: new Date(), to: new Date() }));
 
-  // Guard: only manager can access reports
-  if (currentStaff?.role !== "manager") {
+  // Guard: only staff or manager can access reports (staff see only their branch)
+  if (!currentStaff) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <p className="text-muted-foreground text-sm mt-1">กรุณาเข้าสู่ระบบ</p>
           <Button onClick={() => navigate("/")} className="mt-4 bg-primary text-white">กลับหน้าขาย</Button>
         </div>
       </div>
@@ -58,7 +58,10 @@ export default function ReportsScreen() {
   const [filterPayment, setFilterPayment] = useState<string>("all");
   const [filterStaff, setFilterStaff] = useState<number | "all">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "cancelled">("all");
-  const [filterBranch, setFilterBranch] = useState<number | "all">("all");
+  const isStaffBranchLocked = currentStaff?.role === "staff" && !!currentStaff?.branchId;
+  const [filterBranch, setFilterBranch] = useState<number | "all">(() =>
+    currentStaff?.role === "staff" && currentStaff?.branchId ? currentStaff.branchId : "all"
+  );
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const utils = trpc.useUtils();
@@ -539,7 +542,12 @@ export default function ReportsScreen() {
               <option value="cancelled">ยกเลิก</option>
             </select>
             {branches.length > 0 && (
-              <select value={filterBranch} onChange={(e) => setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))} className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none">
+              <select
+                value={filterBranch}
+                onChange={(e) => !isStaffBranchLocked && setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))}
+                disabled={isStaffBranchLocked}
+                className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 <option value="all">ทุกสาขา</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>

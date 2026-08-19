@@ -166,7 +166,7 @@ export const appRouter = router({
   posUsers: router({
     list: publicProcedure.query(() => getPosUsers()),
     upsert: publicProcedure
-      .input(z.object({ id: z.number().optional(), name: z.string(), pinCode: z.string().min(4).max(6), role: z.enum(["staff", "manager"]) }))
+      .input(z.object({ id: z.number().optional(), name: z.string(), pinCode: z.string().min(4).max(6), role: z.enum(["staff", "manager"]), branchId: z.number().optional().nullable() }))
       .mutation(({ input }) => upsertPosUser(input)),
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
