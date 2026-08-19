@@ -88,14 +88,14 @@ export default function StaffLoginScreen() {
                   className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted hover:bg-secondary border border-border hover:border-primary/40 transition-all duration-200 group"
                 >
                   <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 group-hover:bg-accent/20 transition-colors">
-                    <span className="text-foreground font-bold text-lg">
-                      {staff.name.charAt(0).toUpperCase()}
+                    <span className="text-xl">
+                      {staff.role === "admin" ? "🔑" : staff.role === "manager" ? "👑" : "⚡"}
                     </span>
                   </div>
                   <div className="text-left">
                     <p className="text-foreground font-medium">{staff.name}</p>
                     <p className="text-muted-foreground text-sm">
-                      {staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
+                      {staff.role === "admin" ? "ผู้ดูแลระบบ" : staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
                     </p>
                   </div>
                   <div className="ml-auto">
@@ -120,13 +120,13 @@ export default function StaffLoginScreen() {
 
             <div className="flex flex-col items-center mb-6">
               <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-3">
-                <span className="text-foreground font-bold text-2xl">
-                  {selectedStaff?.name.charAt(0).toUpperCase()}
+                <span className="text-3xl">
+                  {selectedStaff?.role === "admin" ? "🔑" : selectedStaff?.role === "manager" ? "👑" : "⚡"}
                 </span>
               </div>
               <p className="text-foreground font-semibold text-lg">{selectedStaff?.name}</p>
               <p className="text-muted-foreground text-sm">
-                {selectedStaff?.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
+                {selectedStaff?.role === "admin" ? "ผู้ดูแลระบบ" : selectedStaff?.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}
               </p>
             </div>
 
