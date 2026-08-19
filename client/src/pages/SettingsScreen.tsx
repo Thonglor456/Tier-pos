@@ -48,16 +48,32 @@ export default function SettingsScreen() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-4 flex items-center gap-4">
+      <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate("/")} className="text-primary hover:text-foreground transition-colors">
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-xl font-bold text-foreground">ตั้งค่า</h1>
+        <h1 className="text-lg font-bold text-foreground">ตั้งค่า</h1>
       </header>
 
+      {/* Mobile: horizontal scrollable tab bar */}
+      <div className="sm:hidden flex border-b border-border bg-card shrink-0 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors shrink-0",
+              activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+            )}
+          >
+            {tab.icon}{tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-56 bg-card border-r border-border p-4 flex flex-col gap-1">
+        {/* Desktop: Sidebar */}
+        <aside className="hidden sm:flex w-56 bg-card border-r border-border p-4 flex-col gap-1 shrink-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -76,7 +92,7 @@ export default function SettingsScreen() {
         </aside>
 
         {/* Content */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
           {activeTab === "shop" && <ShopInfoSection />}
           {activeTab === "vat" && <VatSection />}
           {activeTab === "hours" && <HoursSection />}

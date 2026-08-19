@@ -145,34 +145,34 @@ export default function DashboardScreen() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
-        <div className="flex items-center gap-3">
-          <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="h-9 w-9 rounded-full object-cover" />
-          <div>
-            <h1 className="font-bold text-lg leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+        <div className="flex items-center gap-3 min-w-0">
+          <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="h-8 w-8 rounded-full object-cover shrink-0" />
+          <div className="min-w-0">
+            <h1 className="font-bold text-base leading-tight truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
               Dashboard
             </h1>
-            <p className="text-xs text-muted-foreground">ยินดีต้อนรับ, {currentStaff?.name}</p>
+            <p className="text-xs text-muted-foreground truncate">ยินดีต้อนรับ, {currentStaff?.name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 ml-2">
           <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          อัปเดตอัตโนมัติทุก 30 วินาที
+          <span className="hidden sm:inline">อัปเดตอัตโนมัติทุก 30 วินาที</span>
         </div>
       </div>
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
         {/* KPI Cards */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">สรุปยอดวันนี้</h2>
           {loadingSummary ? (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-5 gap-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-card rounded-xl p-4 h-24 animate-pulse" />
+                <div key={i} className={`bg-card rounded-xl p-4 h-24 animate-pulse${i === 4 ? " col-span-2 min-[480px]:col-span-1" : ""}`} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-5 gap-3">
               <KPICard
                 label="ยอดขายรวม"
                 value={fmtB(summary?.revenue ?? 0)}
@@ -427,13 +427,13 @@ function KPICard({
   icon: string;
 }) {
   return (
-    <div className="bg-card rounded-xl p-4 border border-border">
-      <div className="flex items-start justify-between mb-2">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-lg">{icon}</span>
+    <div className="bg-card rounded-xl p-3 sm:p-4 border border-border">
+      <div className="flex items-start justify-between mb-1 sm:mb-2">
+        <span className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{label}</span>
+        <span className="text-base sm:text-lg shrink-0 ml-1">{icon}</span>
       </div>
-      <div className={`text-2xl font-bold ${color} mb-1`}>{value}</div>
-      <div className="text-xs text-muted-foreground">{sub}</div>
+      <div className={`text-lg sm:text-2xl font-bold ${color} mb-0.5 truncate`}>{value}</div>
+      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{sub}</div>
     </div>
   );
 }

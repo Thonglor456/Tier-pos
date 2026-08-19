@@ -69,33 +69,51 @@ export default function AdminScreen() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="flex items-center gap-4 px-5 py-3 bg-card border-b border-border shadow-sm shrink-0">
-        <Link href="/">
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">กลับหน้าขาย</span>
-          </button>
-        </Link>
-        <div className="h-5 w-px bg-border" />
-        <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการร้าน</h1>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 bg-card border-b border-border shadow-sm shrink-0">
+        <div className="flex items-center gap-2">
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm hidden xs:inline">กลับหน้าขาย</span>
+            </button>
+          </Link>
+          <div className="h-5 w-px bg-border" />
+          <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>จัดการร้าน</h1>
+        </div>
         <div className="ml-auto flex items-center gap-2">
           {isManager && (
             <Link href="/settings">
-              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <Settings className="w-4 h-4" />
-                ตั้งค่า
+                <span className="hidden sm:inline">ตั้งค่า</span>
               </button>
             </Link>
           )}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {isManager ? <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> : <User className="w-3.5 h-3.5" />}
-            {currentStaff?.name}
+            <span className="hidden sm:inline">{currentStaff?.name}</span>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 57px)" }}>
-        <nav className="w-48 bg-card border-r border-border flex flex-col pt-4 gap-1 px-2 shrink-0">
+      {/* Mobile: horizontal tab bar */}
+      <div className="sm:hidden flex border-b border-border bg-card shrink-0 overflow-x-auto">
+        {TABS.filter((t) => !t.managerOnly || isManager).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+            }`}
+          >
+            {t.icon}{t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop: sidebar */}
+        <nav className="hidden sm:flex w-48 bg-card border-r border-border flex-col pt-4 gap-1 px-2 shrink-0">
           {TABS.filter((t) => !t.managerOnly || isManager).map((t) => (
             <button
               key={t.id}
@@ -105,13 +123,12 @@ export default function AdminScreen() {
               }`}
               style={tab === t.id ? { background: "var(--primary)" } : {}}
             >
-              {t.icon}
-              {t.label}
+              {t.icon}{t.label}
             </button>
           ))}
         </nav>
 
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5">
           {tab === "items" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">

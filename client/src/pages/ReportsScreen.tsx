@@ -279,19 +279,23 @@ export default function ReportsScreen() {
         </div>
       )}
 
-      <header className="flex items-center gap-4 px-5 py-3 bg-card border-b border-border shadow-sm shrink-0">
-        <Link href="/">
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">กลับหน้าขาย</span>
-          </button>
-        </Link>
-        <div className="h-5 w-px bg-border" />
-        <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
-        <div className="ml-auto flex items-center gap-2">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 bg-card border-b border-border shadow-sm shrink-0">
+        {/* Row 1: back + title */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-4 h-4 shrink-0" />
+              <span className="text-sm hidden xs:inline">กลับหน้าขาย</span>
+            </button>
+          </Link>
+          <div className="h-5 w-px bg-border" />
+          <h1 className="text-base font-bold text-foreground truncate" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
+        </div>
+        {/* Row 2 on mobile / same row on desktop: date nav + export */}
+        <div className="flex items-center gap-1.5 ml-auto">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
             title="Export CSV"
           >
             <Download className="w-4 h-4 text-muted-foreground" />
@@ -299,7 +303,7 @@ export default function ReportsScreen() {
           </button>
           <button
             onClick={() => moveDateRange(-selectedDateCount)}
-            className="size-9 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition"
+            className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0"
             title="ดูช่วงวันก่อนหน้า"
             aria-label="ดูช่วงวันก่อนหน้า"
           >
@@ -307,10 +311,10 @@ export default function ReportsScreen() {
           </button>
           <Drawer open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
             <DrawerTrigger asChild>
-              <button onClick={openDatePicker} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/50 bg-primary/10 text-foreground text-sm hover:bg-primary/15 active:scale-[0.98] transition min-w-[205px] justify-between">
+              <button onClick={openDatePicker} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-primary/50 bg-primary/10 text-foreground text-sm hover:bg-primary/15 active:scale-[0.98] transition min-w-0 max-w-[200px] justify-between">
                 <CalendarRange className="w-4 h-4 text-primary shrink-0" />
-                <span className="flex-1 text-center font-medium">{dateLabel}</span>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{selectedDateCount} วัน</span>
+                <span className="flex-1 text-center font-medium truncate">{dateLabel}</span>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap hidden sm:inline">{selectedDateCount} วัน</span>
               </button>
             </DrawerTrigger>
             <DrawerContent className="border-border bg-card max-h-[90vh]">
@@ -368,7 +372,7 @@ export default function ReportsScreen() {
           </Drawer>
           <button
             onClick={() => moveDateRange(selectedDateCount)}
-            className="size-9 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition"
+            className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0"
             title="ดูช่วงวันถัดไป"
             aria-label="ดูช่วงวันถัดไป"
           >
@@ -377,30 +381,30 @@ export default function ReportsScreen() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 min-[480px]:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
           {[
             { label: "ยอดขายรวม", value: `฿${Number(totalRevenue).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.75 0.005 260)" },
             { label: "จำนวนบิล", value: `${totalOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.52 0.18 145)" },
             { label: "จำนวนแก้วที่ขาย", value: `${quantitySummary?.totalCups ?? 0} แก้ว`, icon: <CupSoda className="w-5 h-5" />, color: "oklch(0.62 0.12 215)" },
             { label: "สำเร็จ", value: `${completedOrders} บิล`, icon: <TrendingUp className="w-5 h-5" />, color: "oklch(0.52 0.22 200)" },
             { label: "ยกเลิก", value: `${cancelledOrders} บิล`, icon: <ShoppingBag className="w-5 h-5" />, color: "oklch(0.55 0.18 25)" },
-          ].map((card) => (
-            <div key={card.label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: card.color }}>
+          ].map((card, idx, arr) => (
+            <div key={card.label} className={`bg-card rounded-2xl border border-border p-3 sm:p-4 flex items-center gap-2 sm:gap-3${idx === arr.length - 1 && arr.length % 2 !== 0 ? " col-span-2 min-[480px]:col-span-1" : ""}`}>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: card.color }}>
                 {card.icon}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{card.label}</p>
-                <p className="text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>{card.value}</p>
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{card.label}</p>
+                <p className="text-sm sm:text-lg font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>{card.value}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Breakdowns Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 min-[600px]:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-card rounded-2xl border border-border p-4">
             <div className="flex items-center gap-2 mb-3">
               <Banknote className="w-4 h-4 text-muted-foreground" />
@@ -482,6 +486,36 @@ export default function ReportsScreen() {
             </div>
           </div>
         </div>
+
+        {/* Menu Breakdown */}
+        {(quantitySummary?.menuBreakdown ?? []).length > 0 && (
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CupSoda className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-foreground">เมนูที่ขายได้</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-3 py-2 text-xs font-semibold text-muted-foreground text-left">เมนู</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-muted-foreground text-right">แก้ว</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-muted-foreground text-right">ยอด (฿)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(quantitySummary?.menuBreakdown ?? []).map((m, idx) => (
+                    <tr key={m.itemId} className={`border-b border-border/40 last:border-0 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}>
+                      <td className="px-3 py-2 text-sm text-foreground">{m.itemName}</td>
+                      <td className="px-3 py-2 text-sm font-bold text-foreground text-right">{m.cups}</td>
+                      <td className="px-3 py-2 text-sm text-foreground text-right">฿{Number(m.revenue).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Order List with Filters */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden">

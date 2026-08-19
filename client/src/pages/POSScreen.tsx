@@ -136,8 +136,8 @@ export default function POSScreen() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <POSHeader channelSlug={channelSlug} channels={channels} onChannelChange={handleChannelChange} cartCount={cartCount} />
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden min-h-0">
           <CategoryTabs categories={categories} selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
           <ProductGrid items={items} channelSlug={channelSlug} onPress={handleProductPress} />
         </div>

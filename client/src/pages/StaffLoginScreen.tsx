@@ -53,9 +53,9 @@ export default function StaffLoginScreen() {
   const PAD_KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Logo */}
-      <div className="flex flex-col items-center mb-10">
+      <div className="flex flex-col items-center mb-4 sm:mb-10">
         <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-2xl bg-muted flex-shrink-0">
           <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
         </div>

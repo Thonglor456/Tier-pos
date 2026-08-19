@@ -281,6 +281,7 @@ export async function getOrderQuantitySummary(opts: {
   const emptySummary = {
     totalCups: 0,
     channelBreakdown: {} as Record<string, { cupsSold: number; orderCount: number; revenue: number }>,
+    menuBreakdown: [] as { itemId: number; itemName: string; cups: number; revenue: number }[],
   };
   const db = await getDb();
   if (!db || opts.status === "cancelled") return emptySummary;
@@ -311,18 +312,29 @@ export async function getOrderQuantitySummary(opts: {
   }
 
   const orderIds = completedOrders.map((order) => order.id);
-  const soldItems = await db.select({ orderId: orderItems.orderId, quantity: orderItems.quantity })
+  const soldItems = await db.select({
+    orderId: orderItems.orderId,
+    itemId: orderItems.itemId,
+    itemName: orderItems.itemName,
+    quantity: orderItems.quantity,
+    totalPrice: orderItems.totalPrice,
+  })
     .from(orderItems)
     .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
 
   let totalCups = 0;
+  const menuMap: Record<number, { itemId: number; itemName: string; cups: number; revenue: number }> = {};
   for (const item of soldItems) {
     const quantity = item.quantity ?? 0;
     totalCups += quantity;
     const channel = channelByOrderId.get(item.orderId);
     if (channel && channelBreakdown[channel]) channelBreakdown[channel]!.cupsSold += quantity;
+    if (!menuMap[item.itemId]) menuMap[item.itemId] = { itemId: item.itemId, itemName: item.itemName, cups: 0, revenue: 0 };
+    menuMap[item.itemId]!.cups += quantity;
+    menuMap[item.itemId]!.revenue += parseFloat(String(item.totalPrice));
   }
-  return { totalCups, channelBreakdown };
+  const menuBreakdown = Object.values(menuMap).sort((a, b) => b.cups - a.cups);
+  return { totalCups, channelBreakdown, menuBreakdown };
 }
 
 // ─── POS Users (PIN) ──────────────────────────────────────────────────────────

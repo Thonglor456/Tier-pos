@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Tier-pos",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "export PNPM_HOME=\"/Users/thonglorr/Library/pnpm\" && export PATH=\"$PNPM_HOME/bin:$PATH\" && pnpm dev"],
+      "port": 3000
+    }
+  ]
+}
