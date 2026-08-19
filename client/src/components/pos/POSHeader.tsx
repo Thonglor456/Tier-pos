@@ -62,34 +62,37 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           </div>
           <div className="hidden sm:block">
             <div className="text-base font-bold text-foreground leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</div>
-            {currentBranch ? (
-              isAdmin ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setBranchDropdownOpen((v) => !v)}
-                    className="flex items-center gap-0.5 text-[10px] text-primary leading-none hover:underline"
-                  >
-                    <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span><ChevronDown className="w-2.5 h-2.5" />
-                  </button>
-                  {branchDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[140px]">
-                      {allBranches.filter((b) => b.isActive).map((b) => (
-                        <button
-                          key={b.id}
-                          onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${b.id === currentBranch.id ? "text-primary font-semibold" : "text-foreground"}`}
-                        >
-                          {b.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground leading-none">
-                  <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
-                </div>
-              )
+            {isAdmin ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setBranchDropdownOpen((v) => !v)}
+                  className="flex items-center gap-0.5 text-[10px] text-primary leading-none hover:underline"
+                >
+                  <MapPin className="w-2.5 h-2.5" />
+                  <span>{currentBranch?.name ?? "เลือกสาขา"}</span>
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </button>
+                {branchDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[140px]">
+                    {allBranches.filter((b) => b.isActive).map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${currentBranch?.id === b.id ? "text-primary font-semibold" : "text-foreground"}`}
+                      >
+                        {b.name}
+                      </button>
+                    ))}
+                    {allBranches.filter((b) => b.isActive).length === 0 && (
+                      <p className="px-3 py-2 text-xs text-muted-foreground">ยังไม่มีสาขา</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : currentBranch ? (
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground leading-none">
+                <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
+              </div>
             ) : (
               <div className="text-[10px] text-muted-foreground leading-none">Point of Sale</div>
             )}
@@ -104,11 +107,15 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
         {/* Mobile: branch name center */}
         <div className="flex sm:hidden flex-1 flex-col items-center">
           <span className="text-sm font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</span>
-          {currentBranch && (
+          {isAdmin ? (
+            <button onClick={() => setBranchDropdownOpen((v) => !v)} className="flex items-center gap-0.5 text-[10px] text-primary">
+              <MapPin className="w-2.5 h-2.5" /><span>{currentBranch?.name ?? "เลือกสาขา"}</span><ChevronDown className="w-2.5 h-2.5" />
+            </button>
+          ) : currentBranch ? (
             <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Right: staff + nav */}
