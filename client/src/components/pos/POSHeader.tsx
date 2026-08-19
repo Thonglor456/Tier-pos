@@ -115,8 +115,8 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {currentStaff && (
             <div className="flex items-center gap-1.5 mr-1">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold bg-primary">
-                {currentStaff.name.charAt(0).toUpperCase()}
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-sm leading-none">
+                {currentStaff.role === "admin" ? "🔑" : currentStaff.role === "manager" ? "👑" : "⚡"}
               </div>
               <span className="text-xs text-muted-foreground hidden md:block">{currentStaff.name}</span>
             </div>
