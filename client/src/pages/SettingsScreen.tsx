@@ -23,13 +23,13 @@ export default function SettingsScreen() {
   const { currentStaff } = useStaff();
   const [activeTab, setActiveTab] = useState<Tab>("shop");
 
-  // Guard: only manager can access settings
-  if (currentStaff?.role !== "manager") {
+  // Guard: only manager or admin can access settings
+  if (currentStaff?.role !== "manager" && currentStaff?.role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-primary text-lg font-medium">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการเท่านั้น</p>
+          <p className="text-muted-foreground text-sm mt-1">เฉพาะผู้จัดการและแอดมินเท่านั้น</p>
           <Button onClick={() => navigate("/")} className="mt-4 bg-primary text-white">กลับหน้าขาย</Button>
         </div>
       </div>
