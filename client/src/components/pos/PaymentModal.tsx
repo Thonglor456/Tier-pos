@@ -9,6 +9,7 @@ interface Props {
   cart: CartItem[];
   channelSlug: string;
   total: number;
+  discountAmount?: number;
   staffId?: number;
   branchId?: number;
   onSuccess: () => void;
@@ -17,7 +18,7 @@ interface Props {
 
 const QUICK_AMOUNTS = [20, 50, 100, 500, 1000];
 
-export default function PaymentModal({ cart, channelSlug, total, staffId, branchId, onSuccess, onClose }: Props) {
+export default function PaymentModal({ cart, channelSlug, total, discountAmount = 0, staffId, branchId, onSuccess, onClose }: Props) {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [cashInput, setCashInput] = useState("");
   const [transferConfirmed, setTransferConfirmed] = useState(false);
@@ -25,10 +26,11 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
 
   const { data: settings } = trpc.settings.get.useQuery();
 
+  const finalTotal = Math.max(0, total - discountAmount);
   const cashReceived = cashInput ? parseFloat(cashInput) : 0;
-  const change = method === "cash" ? Math.max(0, cashReceived - total) : 0;
+  const change = method === "cash" ? Math.max(0, cashReceived - finalTotal) : 0;
   const canPay =
-    (method === "cash" && cashReceived >= total) ||
+    (method === "cash" && cashReceived >= finalTotal) ||
     (method === "transfer" && transferConfirmed) ||
     (method === "thai_chuay_thai" && thaiConfirmed);
 
@@ -45,14 +47,15 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
   }, [cashInput]);
 
   const handlePay = useCallback(() => {
-    if (method === "cash" && cashReceived < total) {
+    if (method === "cash" && cashReceived < finalTotal) {
       toast.error("จำนวนเงินที่รับไม่พอกับยอดที่ต้องชำระ");
       return;
     }
       createOrder.mutate({
       salesChannel: channelSlug,
       paymentMethod: method,
-      totalAmount: total,
+      totalAmount: finalTotal,
+      discountAmount: discountAmount > 0 ? discountAmount : undefined,
       cashReceived: method === "cash" ? cashReceived : undefined,
       changeAmount: method === "cash" ? change : undefined,
       staffId,
@@ -69,7 +72,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
         modifiers: item.modifiers,
       })),
     });
-  }, [createOrder, channelSlug, method, total, cashReceived, change, cart, staffId]);
+  }, [createOrder, channelSlug, method, finalTotal, discountAmount, cashReceived, change, cart, staffId]);
 
   const METHODS: Array<{ id: PaymentMethod; label: string; icon: React.ReactNode }> = [
     { id: "cash", label: "เงินสด", icon: <Banknote className="w-5 h-5" /> },
@@ -96,9 +99,15 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                 <span className="font-medium text-foreground">฿{item.totalPrice.toLocaleString()}</span>
               </div>
             ))}
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-500 font-medium">
+                <span>ส่วนลด</span>
+                <span>-฿{discountAmount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="border-t border-border pt-2 flex justify-between font-bold">
-              <span className="text-foreground">ยอดรวม</span>
-              <span className="text-xl" style={{ fontFamily: "'Playfair Display', serif" }}>฿{total.toLocaleString()}</span>
+              <span className="text-foreground">ยอดสุทธิ</span>
+              <span className="text-xl" style={{ fontFamily: "'Playfair Display', serif" }}>฿{finalTotal.toLocaleString()}</span>
             </div>
           </div>
 
@@ -129,7 +138,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                 <p className="text-3xl font-bold text-foreground text-right" style={{ fontFamily: "'Playfair Display', serif" }}>
                   ฿{cashInput || "0"}
                 </p>
-                {cashReceived >= total && (
+                {cashReceived >= finalTotal && (
                   <p className="text-right text-sm text-green-700 font-medium mt-1">เงินทอน ฿{change.toLocaleString()}</p>
                 )}
               </div>
@@ -137,7 +146,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                 {QUICK_AMOUNTS.map((amt) => (
                   <button key={amt} onClick={() => setCashInput(String(amt))} className="px-3 py-1.5 rounded-lg bg-muted text-sm font-medium text-foreground hover:bg-secondary transition-colors">฿{amt}</button>
                 ))}
-                <button onClick={() => setCashInput(String(total))} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>พอดี</button>
+                <button onClick={() => setCashInput(String(finalTotal))} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>พอดี</button>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {["7","8","9","4","5","6","1","2","3",".","0","DEL"].map((k) => (
@@ -164,7 +173,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                     </div>
                   </div>
                 )}
-                <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>฿{total.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>฿{finalTotal.toLocaleString()}</p>
               </div>
               <button
                 onClick={() => setTransferConfirmed((v) => !v)}
@@ -184,7 +193,7 @@ export default function PaymentModal({ cart, channelSlug, total, staffId, branch
                 <Heart className="w-12 h-12 mx-auto text-red-500" />
                 <p className="font-semibold text-foreground">ไทยช่วยไทย</p>
                 <p className="text-sm text-muted-foreground">ลูกค้าชำระผ่านแอปโครงการของรัฐ</p>
-                <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>฿{total.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>฿{finalTotal.toLocaleString()}</p>
               </div>
               <button
                 onClick={() => setThaiConfirmed((v) => !v)}

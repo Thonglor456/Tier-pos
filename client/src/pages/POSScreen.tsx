@@ -21,6 +21,7 @@ export default function POSScreen() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [pendingItem, setPendingItem] = useState<{ itemId: number; variantId?: number } | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [cancelTarget, setCancelTarget] = useState<number | null>(null);
   const [showMobileCart, setShowMobileCart] = useState(false);
 
@@ -151,7 +152,7 @@ export default function POSScreen() {
             total={cartTotal}
             onUpdateQty={handleUpdateQty}
             onRemove={handleRemoveItem}
-            onCheckout={() => cart.length > 0 && setShowPayment(true)}
+            onCheckout={(d) => { if (cart.length > 0) { setDiscountAmount(d); setShowPayment(true); } }}
             onCancelOrder={(orderId: number) => setCancelTarget(orderId)}
             onClearCart={() => setCart([])}
           />
@@ -225,6 +226,7 @@ export default function POSScreen() {
           cart={cart}
           channelSlug={channelSlug}
           total={cartTotal}
+          discountAmount={discountAmount}
           staffId={currentStaff?.id}
           branchId={currentBranch?.id}
           onSuccess={handlePaymentSuccess}
