@@ -22,42 +22,21 @@ interface Props {
 }
 
 export default function OrderPanel({ cart, channelSlug, channelName, total, onUpdateQty, onRemove, onCheckout, onClearCart }: Props) {
-  const [discountMode, setDiscountMode] = useState<"none" | "picker" | "custom">("none");
-  const [discountType, setDiscountType] = useState<"%" | "฿">("%");
+  const [showDiscount, setShowDiscount] = useState(false);
   const [discountValue, setDiscountValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (discountMode === "custom" && inputRef.current) inputRef.current.focus();
-  }, [discountMode]);
+    if (showDiscount && inputRef.current) inputRef.current.focus();
+  }, [showDiscount]);
 
-  // Preset quick discounts
-  const presets = [
-    { label: "5%", type: "%" as const, value: 5 },
-    { label: "10%", type: "%" as const, value: 10 },
-    { label: "15%", type: "%" as const, value: 15 },
-    { label: "20%", type: "%" as const, value: 20 },
-    { label: "฿10", type: "฿" as const, value: 10 },
-    { label: "฿20", type: "฿" as const, value: 20 },
-    { label: "฿50", type: "฿" as const, value: 50 },
-  ];
+  const presets = [10, 20, 30, 50, 100];
 
-  const numVal = parseFloat(discountValue) || 0;
-  const discountAmount = discountMode !== "none"
-    ? discountType === "%"
-      ? Math.round(total * Math.min(numVal, 100) / 100)
-      : Math.min(numVal, total)
-    : 0;
+  const discountAmount = Math.min(parseFloat(discountValue) || 0, total);
   const finalTotal = Math.max(0, total - discountAmount);
 
-  const applyPreset = (type: "%" | "฿", value: number) => {
-    setDiscountType(type);
-    setDiscountValue(String(value));
-    setDiscountMode("custom");
-  };
-
   const clearDiscount = () => {
-    setDiscountMode("none");
+    setShowDiscount(false);
     setDiscountValue("");
   };
 
@@ -143,9 +122,9 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
         </div>
 
         {/* Discount row */}
-        {discountMode === "none" ? (
+        {!showDiscount ? (
           <button
-            onClick={() => setDiscountMode("picker")}
+            onClick={() => setShowDiscount(true)}
             disabled={cart.length === 0}
             className="w-full flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-30"
           >
@@ -154,72 +133,40 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
           </button>
         ) : (
           <div className="space-y-2">
-            {/* Preset buttons */}
-            {discountMode === "picker" && (
-              <div className="flex flex-wrap gap-1.5">
-                {presets.map((p) => (
-                  <button
-                    key={p.label}
-                    onClick={() => applyPreset(p.type, p.value)}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted hover:bg-primary hover:text-primary-foreground transition-colors"
-                  >
-                    {p.label}
-                  </button>
-                ))}
+            {/* Preset + input */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">฿</span>
+              <input
+                ref={inputRef}
+                type="number"
+                min="0"
+                max={String(total)}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder="ระบุส่วนลด"
+                className="flex-1 px-2 py-1 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button onClick={clearDiscount} className="text-muted-foreground hover:text-destructive transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {presets.map((p) => (
                 <button
-                  onClick={() => setDiscountMode("custom")}
+                  key={p}
+                  onClick={() => setDiscountValue(String(p))}
                   className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
-                  กำหนดเอง
+                  ฿{p}
                 </button>
-              </div>
-            )}
-
-            {/* Custom input */}
-            {discountMode === "custom" && (
-              <div className="flex items-center gap-1.5">
-                <div className="flex rounded-lg overflow-hidden border border-border">
-                  <button
-                    onClick={() => setDiscountType("%")}
-                    className={`px-2.5 py-1 text-xs font-bold transition-colors ${discountType === "%" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  >
-                    %
-                  </button>
-                  <button
-                    onClick={() => setDiscountType("฿")}
-                    className={`px-2.5 py-1 text-xs font-bold transition-colors ${discountType === "฿" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  >
-                    ฿
-                  </button>
-                </div>
-                <input
-                  ref={inputRef}
-                  type="number"
-                  min="0"
-                  max={discountType === "%" ? "100" : String(total)}
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder={discountType === "%" ? "0–100" : "จำนวนเงิน"}
-                  className="flex-1 px-2 py-1 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            )}
-
-            {/* Discount amount display + clear */}
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-1 text-emerald-500">
-                <Tag className="w-3.5 h-3.5" />
-                <span className="font-medium">
-                  ส่วนลด{discountMode === "custom" && discountType === "%" && numVal > 0 ? ` (${numVal}%)` : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-emerald-500">-{discountAmount.toLocaleString()}.-</span>
-                <button onClick={clearDiscount} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              ))}
             </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-sm text-emerald-500 font-medium">
+                <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" />ส่วนลด</span>
+                <span>-{discountAmount.toLocaleString()}.-</span>
+              </div>
+            )}
           </div>
         )}
 
