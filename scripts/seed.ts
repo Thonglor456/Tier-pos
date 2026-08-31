@@ -9,10 +9,9 @@ async function seed() {
     ('หน้าร้าน','walkin',1,1),('Grab','grab',1,2),('LINE MAN','lineman',1,3)`);
   console.log("✅ Sales channels");
 
-  // Store Settings
-  await connection.execute(`INSERT IGNORE INTO store_settings (\`key\`,\`value\`) VALUES
-    ('store_name','Tier Coffee'),('vat_enabled','false'),('vat_rate','7'),
-    ('currency','THB'),('receipt_footer','ขอบคุณที่ใช้บริการ Tier Coffee')`);
+  // Store Settings (single-row table)
+  await connection.execute(`INSERT IGNORE INTO store_settings (shopName, vatEnabled, vatRate, openTime, closeTime)
+    VALUES ('Tier Coffee', false, 7.00, '07:00', '22:00')`);
   console.log("✅ Store settings");
 
   // Default branch
