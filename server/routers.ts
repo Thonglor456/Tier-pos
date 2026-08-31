@@ -19,7 +19,11 @@ import {
   getDashboardRecentOrders,
   getDashboardTodaySummary,
   getDashboardTopItems,
+  getDashboardTopItemsWithVariant,
   getDashboardWeeklyRevenue,
+  getDashboardHourlyRevenue,
+  getDashboardMonthComparison,
+  getOrderItemsByIds,
   getItemsWithVariantsAndModifiers,
   getModifierGroupsWithOptions,
   getOrderWithItems,
@@ -73,6 +77,7 @@ export const appRouter = router({
         salesChannel: z.string(),
         paymentMethod: z.enum(["cash", "transfer", "thai_chuay_thai"]),
         totalAmount: z.number(),
+        discountAmount: z.number().optional(),
         cashReceived: z.number().optional(),
         changeAmount: z.number().optional(),
         vatAmount: z.number().optional(),
@@ -160,6 +165,9 @@ export const appRouter = router({
         paymentMethod: input.paymentMethod as "cash" | "transfer" | "thai_chuay_thai" | undefined,
         status: input.status,
       })),
+    itemsByIds: publicProcedure
+      .input(z.object({ orderIds: z.array(z.number()) }))
+      .query(({ input }) => getOrderItemsByIds(input.orderIds)),
   }),
 
   // ─── POS Users (PIN) ─────────────────────────────────────────────────────────
@@ -264,8 +272,13 @@ export const appRouter = router({
     topItems: publicProcedure
       .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
       .query(({ input }) => getDashboardTopItems(input.period, input.limit)),
+    topItemsWithVariant: publicProcedure
+      .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
+      .query(({ input }) => getDashboardTopItemsWithVariant(input.period, input.limit)),
     weeklyRevenue: publicProcedure.query(() => getDashboardWeeklyRevenue()),
     monthlyRevenue: publicProcedure.query(() => getDashboardMonthlyRevenue()),
+    hourlyRevenue: publicProcedure.query(() => getDashboardHourlyRevenue()),
+    monthComparison: publicProcedure.query(() => getDashboardMonthComparison()),
     recentOrders: publicProcedure
       .input(z.object({ limit: z.number().optional() }))
       .query(({ input }) => getDashboardRecentOrders(input.limit)),

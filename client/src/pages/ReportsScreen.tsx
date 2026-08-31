@@ -81,7 +81,7 @@ export default function ReportsScreen() {
     status: filterStatus !== "all" ? filterStatus : undefined,
     staffId: filterStaff !== "all" ? filterStaff : undefined,
     branchId: filterBranch !== "all" ? filterBranch : undefined,
-    limit: 500,
+    limit: 1500,
   });
   const { data: quantitySummary } = trpc.orders.quantitySummary.useQuery({
     startDate: startDateStr,
@@ -210,6 +210,70 @@ export default function ReportsScreen() {
     downloadFile(csv, filename);
     toast.success(`Export สำเร็จ: ${filteredOrders.length} รายการ`);
   }, [filteredOrders, staffList, channels, branches, dateRange, today]);
+
+  // ─── Export with line items (รายการเมนูในแต่ละบิล) ────────────────────────
+  const [exportingItems, setExportingItems] = useState(false);
+  const handleExportWithItems = useCallback(async () => {
+    if (filteredOrders.length === 0) { toast.error("ไม่มีข้อมูลที่จะ Export"); return; }
+    setExportingItems(true);
+    try {
+      const orderIds = filteredOrders.map((o) => o.id);
+      const itemRows = await utils.orders.itemsByIds.fetch({ orderIds });
+      // Build item-level rows
+      const rows: Record<string, string | number>[] = [];
+      for (const order of filteredOrders) {
+        const d = new Date(order.createdAt);
+        const items = itemRows.filter((r) => r.orderId === order.id);
+        const staffName = staffList.find((s) => s.id === order.staffId)?.name ?? "-";
+        const chName = channels.find((c) => c.slug === order.salesChannel)?.name ?? (order.salesChannel ?? "-");
+        const branchName = branches.find((b) => b.id === order.branchId)?.name ?? "-";
+        if (items.length === 0) {
+          rows.push({
+            billId: order.id,
+            date: d.toLocaleDateString("th-TH"),
+            time: d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+            channel: chName, payment: order.paymentMethod, staff: staffName, branch: branchName,
+            billTotal: parseFloat(String(order.totalAmount)).toFixed(2),
+            status: order.status === "completed" ? "สำเร็จ" : "ยกเลิก",
+            itemName: "", variantName: "", qty: "", itemTotal: "",
+          });
+        } else {
+          for (const item of items) {
+            rows.push({
+              billId: order.id,
+              date: d.toLocaleDateString("th-TH"),
+              time: d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+              channel: chName, payment: order.paymentMethod, staff: staffName, branch: branchName,
+              billTotal: parseFloat(String(order.totalAmount)).toFixed(2),
+              status: order.status === "completed" ? "สำเร็จ" : "ยกเลิก",
+              itemName: item.itemName, variantName: item.variantName ?? "",
+              qty: item.quantity,
+              itemTotal: parseFloat(String(item.totalPrice)).toFixed(2),
+            });
+          }
+        }
+      }
+      const headers = [
+        { key: "billId", label: "เลขบิล" }, { key: "date", label: "วันที่" }, { key: "time", label: "เวลา" },
+        { key: "channel", label: "ช่องทาง" }, { key: "payment", label: "วิธีชำระ" },
+        { key: "staff", label: "พนักงาน" }, { key: "branch", label: "สาขา" },
+        { key: "billTotal", label: "ยอดบิล (บาท)" }, { key: "status", label: "สถานะ" },
+        { key: "itemName", label: "ชื่อเมนู" }, { key: "variantName", label: "ประเภท" },
+        { key: "qty", label: "จำนวน" }, { key: "itemTotal", label: "ราคา (บาท)" },
+      ];
+      const csv = toCSV(rows, headers);
+      const fromStr = formatDateForFilename(dateRange.from ?? today);
+      const toStr = formatDateForFilename(dateRange.to ?? dateRange.from ?? today);
+      const filename = fromStr === toStr ? `tier_detail_${fromStr}.csv` : `tier_detail_${fromStr}_${toStr}.csv`;
+      downloadFile(csv, filename);
+      toast.success(`Export รายละเอียด ${rows.length} แถว จาก ${filteredOrders.length} บิล`);
+    } catch (e) {
+      toast.error("Export ล้มเหลว กรุณาลองใหม่");
+    } finally {
+      setExportingItems(false);
+    }
+  }, [filteredOrders, staffList, channels, branches, dateRange, today, utils]);
+
   const dateLabel = useMemo(() => formatDateRangeLabel(dateRange), [dateRange]);
   const selectedDateCount = useMemo(() => getDateRangeLength(dateRange, today), [dateRange, today]);
 
@@ -300,10 +364,19 @@ export default function ReportsScreen() {
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
-            title="Export CSV"
+            title="Export CSV (สรุปบิล)"
           >
             <Download className="w-4 h-4 text-muted-foreground" />
-            <span className="hidden sm:inline text-xs">Export CSV</span>
+            <span className="hidden sm:inline text-xs">Export บิล</span>
+          </button>
+          <button
+            onClick={handleExportWithItems}
+            disabled={exportingItems}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors disabled:opacity-50"
+            title="Export รายละเอียดเมนูในแต่ละบิล"
+          >
+            <Download className="w-4 h-4 text-primary" />
+            <span className="hidden sm:inline text-xs">{exportingItems ? "กำลัง..." : "Export รายเมนู"}</span>
           </button>
           <button
             onClick={() => moveDateRange(-selectedDateCount)}

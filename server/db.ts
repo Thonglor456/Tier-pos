@@ -702,3 +702,102 @@ export async function getDashboardRecentOrders(limit = 10) {
   if (!db) return [];
   return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
 }
+
+// ─── Peak Hours (รายชั่วโมงวันนี้) ───────────────────────────────────────────
+export async function getDashboardHourlyRevenue() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const rows = await db.select({ createdAt: orders.createdAt, totalAmount: orders.totalAmount, status: orders.status })
+    .from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+  const byHour: Record<number, { revenue: number; orders: number }> = {};
+  for (let h = 6; h <= 21; h++) byHour[h] = { revenue: 0, orders: 0 };
+  for (const o of rows) {
+    if (o.status !== "completed") continue;
+    const h = new Date(o.createdAt).getHours();
+    if (byHour[h] !== undefined) {
+      byHour[h]!.revenue += parseFloat(String(o.totalAmount));
+      byHour[h]!.orders += 1;
+    }
+  }
+  return Object.entries(byHour).map(([hour, data]) => ({
+    hour: `${hour}:00`,
+    revenue: Math.round(data.revenue),
+    orders: data.orders,
+  }));
+}
+
+// ─── Month Comparison (เดือนนี้ vs เดือนที่แล้ว) ─────────────────────────────
+export async function getDashboardMonthComparison() {
+  const db = await getDb();
+  if (!db) return { thisMonth: 0, lastMonth: 0, thisMonthOrders: 0, lastMonthOrders: 0 };
+  const now = new Date();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const [thisRows, lastRows] = await Promise.all([
+    db.select({ totalAmount: orders.totalAmount, status: orders.status })
+      .from(orders).where(and(gte(orders.createdAt, thisMonthStart), lte(orders.createdAt, thisMonthEnd))),
+    db.select({ totalAmount: orders.totalAmount, status: orders.status })
+      .from(orders).where(and(gte(orders.createdAt, lastMonthStart), lte(orders.createdAt, lastMonthEnd))),
+  ]);
+  const thisC = thisRows.filter(r => r.status === "completed");
+  const lastC = lastRows.filter(r => r.status === "completed");
+  return {
+    thisMonth: Math.round(thisC.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0)),
+    lastMonth: Math.round(lastC.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0)),
+    thisMonthOrders: thisC.length,
+    lastMonthOrders: lastC.length,
+  };
+}
+
+// ─── Top Items with Variant split ─────────────────────────────────────────────
+export async function getDashboardTopItemsWithVariant(period: "day" | "month", limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const from = period === "day"
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    : new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const completedOrders = await db.select({ id: orders.id })
+    .from(orders).where(and(gte(orders.createdAt, from), lte(orders.createdAt, to), eq(orders.status, "completed")));
+  if (completedOrders.length === 0) return [];
+  const orderIds = completedOrders.map(o => o.id);
+  const allItems = await db.select({
+    itemId: orderItems.itemId,
+    itemName: orderItems.itemName,
+    variantName: orderItems.variantName,
+    quantity: orderItems.quantity,
+    totalPrice: orderItems.totalPrice,
+  }).from(orderItems).where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map(id => sql`${id}`), sql`, `)})`);
+  // Group by itemId + variantName
+  const map: Record<string, { itemId: number; itemName: string; variantName: string; totalQty: number; totalRevenue: number }> = {};
+  for (const row of allItems) {
+    const key = `${row.itemId}__${row.variantName ?? ""}`;
+    if (!map[key]) map[key] = { itemId: row.itemId, itemName: row.itemName, variantName: row.variantName ?? "", totalQty: 0, totalRevenue: 0 };
+    map[key]!.totalQty += row.quantity;
+    map[key]!.totalRevenue += parseFloat(String(row.totalPrice));
+  }
+  return Object.values(map).sort((a, b) => b.totalQty - a.totalQty).slice(0, limit);
+}
+
+// ─── Order Items by Order IDs (สำหรับ Export รายละเอียด) ─────────────────────
+export async function getOrderItemsByIds(orderIds: number[]) {
+  if (orderIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    orderId: orderItems.orderId,
+    itemName: orderItems.itemName,
+    variantName: orderItems.variantName,
+    quantity: orderItems.quantity,
+    basePrice: orderItems.basePrice,
+    modifiersPrice: orderItems.modifiersPrice,
+    totalPrice: orderItems.totalPrice,
+  }).from(orderItems)
+    .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map(id => sql`${id}`), sql`, `)})`);
+}
