@@ -63,7 +63,7 @@ export default function StaffLoginScreen() {
       {/* Logo */}
       <div className="flex flex-col items-center mb-4 sm:mb-10">
         <div className="w-24 h-24 rounded-full overflow-hidden mb-4 shadow-2xl bg-muted flex-shrink-0">
-          <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
+          <img src="/tier-logo.svg" alt="Tier Coffee" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-3xl font-bold text-foreground tracking-wide">Tier Coffee</h1>
         {currentBranch ? (

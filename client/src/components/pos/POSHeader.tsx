@@ -58,7 +58,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden shadow-sm bg-black flex-shrink-0">
-            <img src="/manus-storage/tier_logo_da9eb150.png" alt="Tier Coffee" className="w-full h-full object-cover" />
+            <img src="/tier-logo.svg" alt="Tier Coffee" className="w-full h-full object-cover" />
           </div>
           <div className="hidden sm:block">
             <div className="text-base font-bold text-foreground leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</div>
