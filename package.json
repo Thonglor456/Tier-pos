@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "seed": "tsx scripts/seed.ts",
     "rename-items": "tsx scripts/rename-items.ts",
+    "update-grab": "tsx scripts/update-grab-prices.ts",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
