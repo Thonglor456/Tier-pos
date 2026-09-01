@@ -105,7 +105,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
         </div>
 
         {/* Mobile: branch name center */}
-        <div className="flex sm:hidden flex-1 flex-col items-center">
+        <div className="flex sm:hidden flex-1 flex-col items-center relative" ref={dropdownRef}>
           <span className="text-sm font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</span>
           {isAdmin ? (
             <button onClick={() => setBranchDropdownOpen((v) => !v)} className="flex items-center gap-0.5 text-[10px] text-primary">
@@ -116,6 +116,23 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
               <MapPin className="w-2.5 h-2.5" /><span>{currentBranch.name}</span>
             </div>
           ) : null}
+          {/* Mobile branch dropdown */}
+          {isAdmin && branchDropdownOpen && (
+            <div className="absolute top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[160px]">
+              {allBranches.filter((b) => b.isActive).map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
+                  className={`w-full text-left px-3 py-2.5 text-xs hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${currentBranch?.id === b.id ? "text-primary font-semibold" : "text-foreground"}`}
+                >
+                  {b.name}
+                </button>
+              ))}
+              {allBranches.filter((b) => b.isActive).length === 0 && (
+                <p className="px-3 py-2 text-xs text-muted-foreground">ยังไม่มีสาขา</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: staff + nav */}
