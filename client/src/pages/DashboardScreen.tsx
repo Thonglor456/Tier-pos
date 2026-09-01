@@ -9,7 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
 import { Button } from "@/components/ui/button";
 import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
-import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Minus, MapPin, GitCompareArrows } from "lucide-react";
 import { toast } from "sonner";
 
 function fmt(n: number) {
@@ -36,6 +36,7 @@ export default function DashboardScreen() {
   const [, navigate] = useLocation();
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("week");
   const [topPeriod, setTopPeriod] = useState<TopPeriod>("day");
+  const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(undefined);
 
   if (currentStaff?.role !== "manager" && currentStaff?.role !== "admin") {
     return (
@@ -49,14 +50,18 @@ export default function DashboardScreen() {
     );
   }
 
-  const { data: summary, isLoading: loadingSummary } = trpc.dashboard.todaySummary.useQuery(undefined, { refetchInterval: 30000 });
-  const { data: monthComp } = trpc.dashboard.monthComparison.useQuery(undefined, { refetchInterval: 60000 });
+  const { data: branches = [] } = trpc.branches.list.useQuery();
+  const activeBranches = branches.filter((b) => b.isActive);
+  const branchInput = selectedBranchId ? { branchId: selectedBranchId } : undefined;
+
+  const { data: summary, isLoading: loadingSummary } = trpc.dashboard.todaySummary.useQuery(branchInput, { refetchInterval: 30000 });
+  const { data: monthComp } = trpc.dashboard.monthComparison.useQuery(branchInput, { refetchInterval: 60000 });
   const { data: topItems, isLoading: loadingTop } = trpc.dashboard.topItemsWithVariant.useQuery(
-    { period: topPeriod, limit: 12 }, { refetchInterval: 60000 }
+    { period: topPeriod, limit: 12, branchId: selectedBranchId }, { refetchInterval: 60000 }
   );
-  const { data: weeklyData } = trpc.dashboard.weeklyRevenue.useQuery(undefined, { refetchInterval: 60000 });
-  const { data: monthlyData } = trpc.dashboard.monthlyRevenue.useQuery(undefined, { refetchInterval: 60000 });
-  const { data: hourlyData } = trpc.dashboard.hourlyRevenue.useQuery(undefined, { refetchInterval: 60000 });
+  const { data: weeklyData } = trpc.dashboard.weeklyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
+  const { data: monthlyData } = trpc.dashboard.monthlyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
+  const { data: hourlyData } = trpc.dashboard.hourlyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
   const { data: recentOrders } = trpc.dashboard.recentOrders.useQuery({ limit: 10 }, { refetchInterval: 15000 });
   const { data: channels = [] } = trpc.channels.list.useQuery();
 
@@ -122,9 +127,36 @@ export default function DashboardScreen() {
             <p className="text-xs text-muted-foreground truncate">ยินดีต้อนรับ, {currentStaff?.name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 ml-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="hidden sm:inline">อัปเดตทุก 30 วินาที</span>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {/* Branch Filter */}
+          {activeBranches.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <select
+                value={selectedBranchId ?? ""}
+                onChange={(e) => setSelectedBranchId(e.target.value ? Number(e.target.value) : undefined)}
+                className="text-xs bg-secondary border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">ทุกสาขา</option>
+                {activeBranches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Branch Compare */}
+          {currentStaff?.role === "admin" && activeBranches.length > 1 && (
+            <Link href="/branch-compare">
+              <button className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-secondary text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="เปรียบเทียบสาขา">
+                <GitCompareArrows className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">เปรียบเทียบ</span>
+              </button>
+            </Link>
+          )}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="hidden sm:inline">อัปเดตทุก 30 วินาที</span>
+          </div>
         </div>
       </div>
 

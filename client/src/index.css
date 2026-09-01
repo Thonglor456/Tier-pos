@@ -116,11 +116,14 @@
     transform: scale(0.97);
   }
   .numpad-btn {
-    @apply flex items-center justify-center rounded-xl text-2xl font-semibold transition-all duration-100 select-none cursor-pointer;
+    @apply flex items-center justify-center rounded-xl text-xl sm:text-2xl font-semibold transition-all duration-100 select-none cursor-pointer;
     background: oklch(0.22 0.007 260);
     border: 1px solid oklch(0.28 0.008 260);
     color: oklch(0.93 0.005 260);
-    min-height: 64px;
+    min-height: 52px;
+  }
+  @media (min-width: 640px) {
+    .numpad-btn { min-height: 64px; }
   }
   .numpad-btn:active {
     transform: scale(0.95);

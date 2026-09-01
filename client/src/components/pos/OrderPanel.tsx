@@ -41,7 +41,7 @@ export default function OrderPanel({ cart, channelSlug, channelName, total, onUp
   };
 
   return (
-    <div className="flex flex-col border-l border-border bg-card shrink-0" style={{ width: "320px" }}>
+    <div className="flex flex-col border-l border-border bg-card shrink-0 w-72 sm:w-80 lg:w-96">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">

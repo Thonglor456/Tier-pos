@@ -143,8 +143,8 @@ export default function POSScreen() {
           <CategoryTabs categories={categories} selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
           <ProductGrid items={items} channelSlug={channelSlug} onPress={handleProductPress} />
         </div>
-        {/* Desktop only: order panel sidebar */}
-        <div className="hidden sm:block">
+        {/* Tablet/Desktop: order panel sidebar */}
+        <div className="hidden sm:flex">
           <OrderPanel
             cart={cart}
             channelSlug={channelSlug}
@@ -159,7 +159,7 @@ export default function POSScreen() {
         </div>
       </div>
 
-      {/* Mobile only: sticky bottom cart bar */}
+      {/* Mobile only: sticky bottom cart bar (hidden on sm+ where sidebar shows) */}
       {cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 sm:hidden z-40">
           {/* Expandable cart list */}

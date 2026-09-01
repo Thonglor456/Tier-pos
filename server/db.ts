@@ -577,7 +577,7 @@ export async function cancelOrderDirect(orderId: number, cancelReason: string) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-export async function getDashboardTodaySummary() {
+export async function getDashboardTodaySummary(branchId?: number) {
   const db = await getDb();
   if (!db) return {
     revenue: 0, orders: 0, avgOrderValue: 0, cancelled: 0, completed: 0,
@@ -587,7 +587,9 @@ export async function getDashboardTodaySummary() {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const rows = await db.select().from(orders).where(and(gte(orders.createdAt, startOfDay), lte(orders.createdAt, endOfDay)));
+  const conds = [gte(orders.createdAt, startOfDay), lte(orders.createdAt, endOfDay)];
+  if (branchId) conds.push(eq(orders.branchId, branchId));
+  const rows = await db.select().from(orders).where(and(...conds));
   const completed = rows.filter((r) => r.status === "completed");
   const cancelled = rows.filter((r) => r.status === "cancelled");
   const revenue = completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0);
@@ -656,7 +658,7 @@ export async function getDashboardTopItems(period: "day" | "month", limit = 10) 
   return Object.values(map).sort((a, b) => b.totalQty - a.totalQty).slice(0, limit);
 }
 
-export async function getDashboardWeeklyRevenue() {
+export async function getDashboardWeeklyRevenue(branchId?: number) {
   const db = await getDb();
   if (!db) return [];
   const result: { date: string; revenue: number; orders: number }[] = [];
@@ -664,8 +666,10 @@ export async function getDashboardWeeklyRevenue() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
     const dEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 23, 59, 59, 999);
+    const conds = [gte(orders.createdAt, d), lte(orders.createdAt, dEnd)];
+    if (branchId) conds.push(eq(orders.branchId, branchId));
     const rows = await db.select({ totalAmount: orders.totalAmount, status: orders.status })
-      .from(orders).where(and(gte(orders.createdAt, d), lte(orders.createdAt, dEnd)));
+      .from(orders).where(and(...conds));
     const completed = rows.filter((r) => r.status === "completed");
     result.push({
       date: d.toLocaleDateString("th-TH", { weekday: "short", day: "numeric", month: "short" }),
@@ -676,7 +680,7 @@ export async function getDashboardWeeklyRevenue() {
   return result;
 }
 
-export async function getDashboardMonthlyRevenue() {
+export async function getDashboardMonthlyRevenue(branchId?: number) {
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
@@ -685,8 +689,10 @@ export async function getDashboardMonthlyRevenue() {
   for (let day = 1; day <= Math.min(daysInMonth, now.getDate()); day++) {
     const d = new Date(now.getFullYear(), now.getMonth(), day, 0, 0, 0, 0);
     const dEnd = new Date(now.getFullYear(), now.getMonth(), day, 23, 59, 59, 999);
+    const conds = [gte(orders.createdAt, d), lte(orders.createdAt, dEnd)];
+    if (branchId) conds.push(eq(orders.branchId, branchId));
     const rows = await db.select({ totalAmount: orders.totalAmount, status: orders.status })
-      .from(orders).where(and(gte(orders.createdAt, d), lte(orders.createdAt, dEnd)));
+      .from(orders).where(and(...conds));
     const completed = rows.filter((r) => r.status === "completed");
     result.push({
       day,
@@ -697,6 +703,32 @@ export async function getDashboardMonthlyRevenue() {
   return result;
 }
 
+// ─── Branch Comparison (ทุกสาขาวันนี้) ────────────────────────────────────────
+export async function getDashboardBranchComparison() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const allBranches = await db.select().from(branches).where(eq(branches.isActive, true));
+  const todayOrders = await db.select().from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+  return allBranches.map((branch) => {
+    const branchOrders = todayOrders.filter((o) => o.branchId === branch.id);
+    const completed = branchOrders.filter((o) => o.status === "completed");
+    const cancelled = branchOrders.filter((o) => o.status === "cancelled");
+    const revenue = completed.reduce((s, o) => s + parseFloat(String(o.totalAmount)), 0);
+    return {
+      branchId: branch.id,
+      branchName: branch.name,
+      revenue: Math.round(revenue),
+      orders: branchOrders.length,
+      completed: completed.length,
+      cancelled: cancelled.length,
+      avgOrderValue: completed.length > 0 ? Math.round(revenue / completed.length) : 0,
+    };
+  });
+}
+
 export async function getDashboardRecentOrders(limit = 10) {
   const db = await getDb();
   if (!db) return [];
@@ -704,14 +736,16 @@ export async function getDashboardRecentOrders(limit = 10) {
 }
 
 // ─── Peak Hours (รายชั่วโมงวันนี้) ───────────────────────────────────────────
-export async function getDashboardHourlyRevenue() {
+export async function getDashboardHourlyRevenue(branchId?: number) {
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const conds = [gte(orders.createdAt, start), lte(orders.createdAt, end)];
+  if (branchId) conds.push(eq(orders.branchId, branchId));
   const rows = await db.select({ createdAt: orders.createdAt, totalAmount: orders.totalAmount, status: orders.status })
-    .from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+    .from(orders).where(and(...conds));
   const byHour: Record<number, { revenue: number; orders: number }> = {};
   for (let h = 6; h <= 21; h++) byHour[h] = { revenue: 0, orders: 0 };
   for (const o of rows) {
@@ -730,7 +764,7 @@ export async function getDashboardHourlyRevenue() {
 }
 
 // ─── Month Comparison (เดือนนี้ vs เดือนที่แล้ว) ─────────────────────────────
-export async function getDashboardMonthComparison() {
+export async function getDashboardMonthComparison(branchId?: number) {
   const db = await getDb();
   if (!db) return { thisMonth: 0, lastMonth: 0, thisMonthOrders: 0, lastMonthOrders: 0 };
   const now = new Date();
@@ -738,11 +772,14 @@ export async function getDashboardMonthComparison() {
   const thisMonthEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const thisConds = [gte(orders.createdAt, thisMonthStart), lte(orders.createdAt, thisMonthEnd)];
+  const lastConds = [gte(orders.createdAt, lastMonthStart), lte(orders.createdAt, lastMonthEnd)];
+  if (branchId) { thisConds.push(eq(orders.branchId, branchId)); lastConds.push(eq(orders.branchId, branchId)); }
   const [thisRows, lastRows] = await Promise.all([
     db.select({ totalAmount: orders.totalAmount, status: orders.status })
-      .from(orders).where(and(gte(orders.createdAt, thisMonthStart), lte(orders.createdAt, thisMonthEnd))),
+      .from(orders).where(and(...thisConds)),
     db.select({ totalAmount: orders.totalAmount, status: orders.status })
-      .from(orders).where(and(gte(orders.createdAt, lastMonthStart), lte(orders.createdAt, lastMonthEnd))),
+      .from(orders).where(and(...lastConds)),
   ]);
   const thisC = thisRows.filter(r => r.status === "completed");
   const lastC = lastRows.filter(r => r.status === "completed");
@@ -755,7 +792,7 @@ export async function getDashboardMonthComparison() {
 }
 
 // ─── Top Items with Variant split ─────────────────────────────────────────────
-export async function getDashboardTopItemsWithVariant(period: "day" | "month", limit = 10) {
+export async function getDashboardTopItemsWithVariant(period: "day" | "month", limit = 10, branchId?: number) {
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
@@ -763,8 +800,10 @@ export async function getDashboardTopItemsWithVariant(period: "day" | "month", l
     ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
     : new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
   const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const conds = [gte(orders.createdAt, from), lte(orders.createdAt, to), eq(orders.status, "completed")];
+  if (branchId) conds.push(eq(orders.branchId, branchId));
   const completedOrders = await db.select({ id: orders.id })
-    .from(orders).where(and(gte(orders.createdAt, from), lte(orders.createdAt, to), eq(orders.status, "completed")));
+    .from(orders).where(and(...conds));
   if (completedOrders.length === 0) return [];
   const orderIds = completedOrders.map(o => o.id);
   const allItems = await db.select({

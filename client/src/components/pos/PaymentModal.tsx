@@ -81,8 +81,8 @@ export default function PaymentModal({ cart, channelSlug, total, discountAmount 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: "95vh" }}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="bg-card sm:rounded-2xl rounded-t-2xl shadow-2xl w-full sm:max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: "96dvh" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>ชำระเงิน</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">

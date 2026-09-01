@@ -31,19 +31,30 @@ export default function StaffLoginScreen() {
     setError("");
   };
 
+  // Step 3: branch selection (for staff without assigned branch)
+  const [pendingStaff, setPendingStaff] = useState<{ id: number; name: string; role: "admin" | "manager" | "staff"; branchId: number | null } | null>(null);
+
   const handleConfirm = async () => {
     if (!selectedStaffId || pin.length < 4) return;
     setIsVerifying(true);
     try {
       const result = await verifyMutation.mutateAsync({ staffId: selectedStaffId, pin });
       if (result) {
-        setCurrentStaff({ id: result.id, name: result.name, role: result.role, branchId: result.branchId ?? null });
-        // Auto-set branch if staff is assigned to a specific branch
+        const staffData = { id: result.id, name: result.name, role: result.role as "admin" | "manager" | "staff", branchId: result.branchId ?? null };
         if (result.branchId) {
+          // Staff assigned to a specific branch — auto-set and enter
           const assignedBranch = allBranches.find((b) => b.id === result.branchId);
           if (assignedBranch) setCurrentBranch({ id: assignedBranch.id, name: assignedBranch.name });
+          setCurrentStaff(staffData);
+          toast.success(`ยินดีต้อนรับ ${result.name}`);
+        } else if (allBranches.filter((b) => b.isActive).length > 0) {
+          // No fixed branch + branches exist → ask which branch
+          setPendingStaff(staffData);
+        } else {
+          // No branches configured → enter without branch
+          setCurrentStaff(staffData);
+          toast.success(`ยินดีต้อนรับ ${result.name}`);
         }
-        toast.success(`ยินดีต้อนรับ ${result.name}`);
       } else {
         setError("PIN ไม่ถูกต้อง กรุณาลองใหม่");
         setPin("");
@@ -54,6 +65,13 @@ export default function StaffLoginScreen() {
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const handleSelectBranch = (branch: { id: number; name: string }) => {
+    if (!pendingStaff) return;
+    setCurrentBranch(branch);
+    setCurrentStaff(pendingStaff);
+    toast.success(`ยินดีต้อนรับ ${pendingStaff.name} · ${branch.name}`);
   };
 
   const PAD_KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
@@ -74,6 +92,44 @@ export default function StaffLoginScreen() {
           <p className="text-muted-foreground text-sm mt-1">Point of Sale</p>
         )}
       </div>
+
+      {/* Step 3: Branch Selection Modal */}
+      {pendingStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-sm p-8">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <MapPin className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground">เลือกสาขา</h2>
+              <p className="text-sm text-muted-foreground mt-1">{pendingStaff.name} · กรุณาเลือกสาขาที่ปฏิบัติงาน</p>
+            </div>
+            <div className="space-y-2">
+              {allBranches.filter((b) => b.isActive).map((branch) => (
+                <button
+                  key={branch.id}
+                  onClick={() => handleSelectBranch({ id: branch.id, name: branch.name })}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border bg-muted hover:bg-secondary hover:border-primary/40 transition-all duration-150 text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{branch.name}</p>
+                    {branch.address && <p className="text-xs text-muted-foreground truncate">{branch.address}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { setPendingStaff(null); setSelectedStaffId(null); setPin(""); }}
+              className="w-full mt-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← ย้อนกลับ
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-md bg-card rounded-3xl shadow-2xl border border-border overflow-hidden">
         {!selectedStaffId ? (

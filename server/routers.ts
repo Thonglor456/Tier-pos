@@ -23,6 +23,7 @@ import {
   getDashboardWeeklyRevenue,
   getDashboardHourlyRevenue,
   getDashboardMonthComparison,
+  getDashboardBranchComparison,
   getOrderItemsByIds,
   getItemsWithVariantsAndModifiers,
   getModifierGroupsWithOptions,
@@ -268,17 +269,28 @@ export const appRouter = router({
   }),
   // u2500u2500u2500 Dashboard u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
   dashboard: router({
-    todaySummary: publicProcedure.query(() => getDashboardTodaySummary()),
+    todaySummary: publicProcedure
+      .input(z.object({ branchId: z.number().optional() }).optional())
+      .query(({ input }) => getDashboardTodaySummary(input?.branchId)),
     topItems: publicProcedure
       .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
       .query(({ input }) => getDashboardTopItems(input.period, input.limit)),
     topItemsWithVariant: publicProcedure
-      .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
-      .query(({ input }) => getDashboardTopItemsWithVariant(input.period, input.limit)),
-    weeklyRevenue: publicProcedure.query(() => getDashboardWeeklyRevenue()),
-    monthlyRevenue: publicProcedure.query(() => getDashboardMonthlyRevenue()),
-    hourlyRevenue: publicProcedure.query(() => getDashboardHourlyRevenue()),
-    monthComparison: publicProcedure.query(() => getDashboardMonthComparison()),
+      .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional(), branchId: z.number().optional() }))
+      .query(({ input }) => getDashboardTopItemsWithVariant(input.period, input.limit, input.branchId)),
+    weeklyRevenue: publicProcedure
+      .input(z.object({ branchId: z.number().optional() }).optional())
+      .query(({ input }) => getDashboardWeeklyRevenue(input?.branchId)),
+    monthlyRevenue: publicProcedure
+      .input(z.object({ branchId: z.number().optional() }).optional())
+      .query(({ input }) => getDashboardMonthlyRevenue(input?.branchId)),
+    hourlyRevenue: publicProcedure
+      .input(z.object({ branchId: z.number().optional() }).optional())
+      .query(({ input }) => getDashboardHourlyRevenue(input?.branchId)),
+    monthComparison: publicProcedure
+      .input(z.object({ branchId: z.number().optional() }).optional())
+      .query(({ input }) => getDashboardMonthComparison(input?.branchId)),
+    branchComparison: publicProcedure.query(() => getDashboardBranchComparison()),
     recentOrders: publicProcedure
       .input(z.object({ limit: z.number().optional() }))
       .query(({ input }) => getDashboardRecentOrders(input.limit)),
