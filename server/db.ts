@@ -582,7 +582,7 @@ export async function getDashboardTodaySummary(branchId?: number) {
   if (!db) return {
     revenue: 0, orders: 0, avgOrderValue: 0, cancelled: 0, completed: 0,
     cupsSold: 0,
-    channelBreakdown: {} as Record<string, { cupsSold: number; orderCount: number; revenue: number }>,
+    channelBreakdown: {} as Record<string, { cupsSold: number; orderCount: number; revenue: number; paymentBreakdown: Record<string, number> }>,
   };
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -593,14 +593,17 @@ export async function getDashboardTodaySummary(branchId?: number) {
   const completed = rows.filter((r) => r.status === "completed");
   const cancelled = rows.filter((r) => r.status === "cancelled");
   const revenue = completed.reduce((s, r) => s + parseFloat(String(r.totalAmount)), 0);
-  const channelBreakdown: Record<string, { cupsSold: number; orderCount: number; revenue: number }> = {};
+  const channelBreakdown: Record<string, { cupsSold: number; orderCount: number; revenue: number; paymentBreakdown: Record<string, number> }> = {};
   const channelByOrderId = new Map<number, string>();
   for (const order of completed) {
     const channel = order.salesChannel || "walkin";
     channelByOrderId.set(order.id, channel);
-    if (!channelBreakdown[channel]) channelBreakdown[channel] = { cupsSold: 0, orderCount: 0, revenue: 0 };
+    if (!channelBreakdown[channel]) channelBreakdown[channel] = { cupsSold: 0, orderCount: 0, revenue: 0, paymentBreakdown: {} };
     channelBreakdown[channel]!.orderCount += 1;
-    channelBreakdown[channel]!.revenue += parseFloat(String(order.totalAmount));
+    const amt = parseFloat(String(order.totalAmount));
+    channelBreakdown[channel]!.revenue += amt;
+    const pm = order.paymentMethod || "cash";
+    channelBreakdown[channel]!.paymentBreakdown[pm] = (channelBreakdown[channel]!.paymentBreakdown[pm] ?? 0) + amt;
   }
   let cupsSold = 0;
   const orderIds = completed.map((order) => order.id);

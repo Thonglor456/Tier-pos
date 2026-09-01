@@ -211,12 +211,25 @@ export default function DashboardScreen() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {channels.map((channel) => {
-              const detail = summary?.channelBreakdown?.[channel.slug] ?? { cupsSold: 0, orderCount: 0, revenue: 0 };
+              const detail = summary?.channelBreakdown?.[channel.slug] ?? { cupsSold: 0, orderCount: 0, revenue: 0, paymentBreakdown: {} };
+              const pm = (detail as { paymentBreakdown?: Record<string, number> }).paymentBreakdown ?? {};
+              const pmLabels: Record<string, string> = { cash: "เงินสด", transfer: "โอน", thai_chuay_thai: "ไทยช่วยไทย" };
+              const pmEntries = Object.entries(pm).filter(([, v]) => v > 0);
               return (
                 <div key={channel.slug} className="rounded-lg border border-border bg-secondary/30 p-4">
                   <p className="text-sm font-semibold text-foreground">{channel.name}</p>
-                  <p className="text-lg font-bold text-primary mt-2">{fmtB(Number(detail.revenue ?? 0))}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{detail.orderCount ?? 0} บิล · {detail.cupsSold ?? 0} แก้ว</p>
+                  <p className="text-xl font-bold text-primary mt-2">{fmtB(Number(detail.revenue ?? 0))}</p>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">{detail.orderCount ?? 0} บิล · {detail.cupsSold ?? 0} แก้ว</p>
+                  {pmEntries.length > 0 && (
+                    <div className="space-y-1 border-t border-border/40 pt-2">
+                      {pmEntries.map(([method, amt]) => (
+                        <div key={method} className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground">{pmLabels[method] ?? method}</span>
+                          <span className="font-medium text-foreground">{fmtB(amt)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
