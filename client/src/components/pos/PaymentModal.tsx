@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { X, Banknote, Smartphone, Heart, Delete } from "lucide-react";
+import { X, Banknote, Smartphone, Heart, Delete, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -17,15 +17,19 @@ interface Props {
 }
 
 const QUICK_AMOUNTS = [20, 50, 100, 500, 1000];
+const DISCOUNT_PRESETS = [10, 20, 30, 50, 100];
 
-export default function PaymentModal({ cart, channelSlug, total, discountAmount = 0, staffId, branchId, onSuccess, onClose }: Props) {
+export default function PaymentModal({ cart, channelSlug, total, discountAmount: externalDiscount = 0, staffId, branchId, onSuccess, onClose }: Props) {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [cashInput, setCashInput] = useState("");
   const [transferConfirmed, setTransferConfirmed] = useState(false);
   const [thaiConfirmed, setThaiConfirmed] = useState(false);
+  const [discountInput, setDiscountInput] = useState(externalDiscount > 0 ? String(externalDiscount) : "");
+  const [showDiscount, setShowDiscount] = useState(externalDiscount > 0);
 
   const { data: settings } = trpc.settings.get.useQuery();
 
+  const discountAmount = Math.min(parseFloat(discountInput) || 0, total);
   const finalTotal = Math.max(0, total - discountAmount);
   const cashReceived = cashInput ? parseFloat(cashInput) : 0;
   const change = method === "cash" ? Math.max(0, cashReceived - finalTotal) : 0;
@@ -56,6 +60,7 @@ export default function PaymentModal({ cart, channelSlug, total, discountAmount 
       paymentMethod: method,
       totalAmount: finalTotal,
       discountAmount: discountAmount > 0 ? discountAmount : undefined,
+
       cashReceived: method === "cash" ? cashReceived : undefined,
       changeAmount: method === "cash" ? change : undefined,
       staffId,
@@ -99,6 +104,48 @@ export default function PaymentModal({ cart, channelSlug, total, discountAmount 
                 <span className="font-medium text-foreground">฿{item.totalPrice.toLocaleString()}</span>
               </div>
             ))}
+
+            {/* Discount row */}
+            {!showDiscount ? (
+              <button
+                onClick={() => setShowDiscount(true)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors pt-1"
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>เพิ่มส่วนลด</span>
+              </button>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <input
+                    type="number"
+                    min="0"
+                    max={String(total)}
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                    placeholder="ระบุส่วนลด (บาท)"
+                    className="flex-1 px-2 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    autoFocus
+                  />
+                  <button onClick={() => { setShowDiscount(false); setDiscountInput(""); }} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DISCOUNT_PRESETS.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setDiscountInput(String(p))}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-background border border-border hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+                    >
+                      ฿{p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {discountAmount > 0 && (
               <div className="flex justify-between text-sm text-emerald-500 font-medium">
                 <span>ส่วนลด</span>
