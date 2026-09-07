@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import { useStaff } from "@/contexts/StaffContext";
+import { useBranch } from "@/contexts/BranchContext";
 import { Button } from "@/components/ui/button";
 import { toCSV, downloadFile, formatDateForFilename } from "@/lib/exportUtils";
 import { Download, TrendingUp, TrendingDown, Minus, MapPin, GitCompareArrows } from "lucide-react";
@@ -33,6 +34,7 @@ function changePct(current: number, prev: number): number | null {
 
 export default function DashboardScreen() {
   const { currentStaff } = useStaff();
+  const { currentBranch } = useBranch();
   const [, navigate] = useLocation();
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("week");
   const [topPeriod, setTopPeriod] = useState<TopPeriod>("day");
@@ -124,7 +126,14 @@ export default function DashboardScreen() {
           <img src="/tier-logo.svg" alt="Tier Coffee" className="h-8 w-8 rounded-full object-cover shrink-0" />
           <div className="min-w-0">
             <h1 className="font-bold text-base leading-tight truncate" style={{ fontFamily: "'Playfair Display', serif" }}>Dashboard</h1>
-            <p className="text-xs text-muted-foreground truncate">ยินดีต้อนรับ, {currentStaff?.name}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {currentStaff?.name}
+              {currentBranch && (
+                <span className="ml-1.5 inline-flex items-center gap-0.5 text-primary">
+                  <MapPin className="w-2.5 h-2.5" />{currentBranch.name}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">

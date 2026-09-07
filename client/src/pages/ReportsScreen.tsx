@@ -2,9 +2,10 @@ import { useState, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download, CupSoda, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, ShoppingBag, Banknote, Smartphone, Heart, Users, Store, Truck, XCircle, CalendarRange, Download, CupSoda, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useStaff } from "@/contexts/StaffContext";
+import { useBranch } from "@/contexts/BranchContext";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
@@ -36,6 +37,7 @@ function formatDateRangeLabel(range: DateRange) {
 export default function ReportsScreen() {
   const today = useMemo(() => new Date(), []);
   const { currentStaff } = useStaff();
+  const { currentBranch } = useBranch();
   const [, navigate] = useLocation();
   const [dateRange, setDateRange] = useState<DateRange>(() => ({ from: new Date(), to: new Date() }));
 
@@ -360,6 +362,14 @@ export default function ReportsScreen() {
           </Link>
           <div className="h-5 w-px bg-border" />
           <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
+
+          {/* Current branch badge (always visible) */}
+          {currentBranch && (
+            <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+              <MapPin className="w-3 h-3" />
+              {currentBranch.name}
+            </span>
+          )}
 
           {/* Branch filter — admin only, moved to header */}
           {branches.length > 0 && currentStaff?.role === "admin" && (
