@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard, ChevronDown } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard, ChevronDown, Tag } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
 import { useBranch } from "@/contexts/BranchContext";
 import { trpc } from "@/lib/trpc";
@@ -155,6 +155,11 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           <Link href="/reports">
             <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="รายงาน">
               <BarChart2 className="w-4 h-4" />
+            </button>
+          </Link>
+          <Link href="/prices">
+            <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="แก้ไขราคาสินค้า">
+              <Tag className="w-4 h-4" />
             </button>
           </Link>
           <Link href="/admin">

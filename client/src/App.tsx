@@ -13,6 +13,7 @@ import ReportsScreen from "./pages/ReportsScreen";
 import SettingsScreen from "./pages/SettingsScreen";
 import DashboardScreen from "./pages/DashboardScreen";
 import BranchCompareScreen from "./pages/BranchCompareScreen";
+import PriceEditScreen from "./pages/PriceEditScreen";
 
 function AppRoutes() {
   const { currentStaff } = useStaff();
@@ -25,6 +26,7 @@ function AppRoutes() {
       <Route path="/settings" component={SettingsScreen} />
       <Route path="/dashboard" component={DashboardScreen} />
       <Route path="/branch-compare" component={BranchCompareScreen} />
+      <Route path="/prices" component={PriceEditScreen} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
