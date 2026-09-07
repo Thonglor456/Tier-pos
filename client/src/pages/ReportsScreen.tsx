@@ -153,16 +153,18 @@ export default function ReportsScreen() {
   }, [orders]);
   const channelMetrics = quantitySummary?.channelBreakdown ?? channelBreakdown;
 
-  // For range display: compute totals from orders (not dailySummary which is single-day)
+  // For range display: compute totals from orders (not dailySummary which is single-day and has no branch filter)
   const isMultiDay = dateRange.from && dateRange.to && dateRange.from.toDateString() !== dateRange.to.toDateString();
+  const isBranchFiltered = filterBranch !== "all";
   const rangeRevenue = useMemo(() => orders.filter(o => o.status === "completed").reduce((s, o) => s + parseFloat(String(o.totalAmount)), 0), [orders]);
   const rangeCompleted = useMemo(() => orders.filter(o => o.status === "completed").length, [orders]);
   const rangeCancelled = useMemo(() => orders.filter(o => o.status === "cancelled").length, [orders]);
 
-  const totalRevenue = isMultiDay ? rangeRevenue : (summary?.totalRevenue ?? rangeRevenue);
-  const totalOrders = isMultiDay ? orders.length : ((summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0));
-  const completedOrders = isMultiDay ? rangeCompleted : (summary?.completedCount ?? rangeCompleted);
-  const cancelledOrders = isMultiDay ? rangeCancelled : (summary?.cancelledCount ?? rangeCancelled);
+  // When branch is filtered or multi-day, always use order-derived totals (branch-aware)
+  const totalRevenue = (isMultiDay || isBranchFiltered) ? rangeRevenue : (summary?.totalRevenue ?? rangeRevenue);
+  const totalOrders = (isMultiDay || isBranchFiltered) ? orders.length : ((summary?.completedCount ?? 0) + (summary?.cancelledCount ?? 0));
+  const completedOrders = (isMultiDay || isBranchFiltered) ? rangeCompleted : (summary?.completedCount ?? rangeCompleted);
+  const cancelledOrders = (isMultiDay || isBranchFiltered) ? rangeCancelled : (summary?.cancelledCount ?? rangeCancelled);
   const filteredOrders = orders.filter((o) => filterPayment === "all" || o.paymentMethod === filterPayment);
 
 
@@ -347,58 +349,60 @@ export default function ReportsScreen() {
         </div>
       )}
 
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 bg-card border-b border-border shadow-sm shrink-0">
-        {/* Row 1: back + title */}
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="bg-card border-b border-border shadow-sm shrink-0">
+        {/* Row 1: back + title + branch */}
+        <div className="flex items-center gap-2 px-4 py-2.5">
           <Link href="/">
-            <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4 shrink-0" />
-              <span className="text-sm hidden xs:inline">กลับหน้าขาย</span>
+            <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm hidden sm:inline">กลับ</span>
             </button>
           </Link>
           <div className="h-5 w-px bg-border" />
-          <h1 className="text-base font-bold text-foreground truncate" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
+          <h1 className="text-base font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>รายงานยอดขาย</h1>
+
+          {/* Branch filter — admin only, moved to header */}
+          {branches.length > 0 && currentStaff?.role === "admin" && (
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))}
+              className="ml-2 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">📍 ทุกสาขา</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>📍 {b.name}</option>)}
+            </select>
+          )}
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs hover:bg-muted transition-colors" title="Export สรุปบิล">
+              <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="hidden sm:inline">Export บิล</span>
+            </button>
+            <button onClick={handleExportWithItems} disabled={exportingItems} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs hover:bg-muted transition-colors disabled:opacity-50" title="Export รายละเอียดเมนู">
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">{exportingItems ? "กำลัง..." : "Export เมนู"}</span>
+            </button>
+          </div>
         </div>
-        {/* Row 2 on mobile / same row on desktop: date nav + export */}
-        <div className="flex items-center gap-1.5 ml-auto">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
-            title="Export CSV (สรุปบิล)"
-          >
-            <Download className="w-4 h-4 text-muted-foreground" />
-            <span className="hidden sm:inline text-xs">Export บิล</span>
-          </button>
-          <button
-            onClick={handleExportWithItems}
-            disabled={exportingItems}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors disabled:opacity-50"
-            title="Export รายละเอียดเมนูในแต่ละบิล"
-          >
-            <Download className="w-4 h-4 text-primary" />
-            <span className="hidden sm:inline text-xs">{exportingItems ? "กำลัง..." : "Export รายเมนู"}</span>
-          </button>
-          <button
-            onClick={() => moveDateRange(-selectedDateCount)}
-            className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0"
-            title="ดูช่วงวันก่อนหน้า"
-            aria-label="ดูช่วงวันก่อนหน้า"
-          >
+
+        {/* Row 2: Date navigation */}
+        <div className="flex items-center gap-1.5 px-4 pb-2.5">
+          <button onClick={() => moveDateRange(-selectedDateCount)} className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0" title="ช่วงก่อนหน้า">
             <ChevronLeft className="w-4 h-4 mx-auto" />
           </button>
           <Drawer open={dateDrawerOpen} onOpenChange={setDateDrawerOpen}>
             <DrawerTrigger asChild>
-              <button onClick={openDatePicker} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-primary/50 bg-primary/10 text-foreground text-sm hover:bg-primary/15 active:scale-[0.98] transition min-w-0 max-w-[200px] justify-between">
+              <button onClick={openDatePicker} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/50 bg-primary/10 text-foreground text-sm hover:bg-primary/15 active:scale-[0.98] transition flex-1 max-w-xs">
                 <CalendarRange className="w-4 h-4 text-primary shrink-0" />
-                <span className="flex-1 text-center font-medium truncate">{dateLabel}</span>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap hidden sm:inline">{selectedDateCount} วัน</span>
+                <span className="font-medium truncate">{dateLabel}</span>
+                {selectedDateCount > 1 && <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-auto">{selectedDateCount} วัน</span>}
               </button>
             </DrawerTrigger>
             <DrawerContent className="border-border bg-card max-h-[90vh]">
               <div className="mx-auto w-full max-w-3xl overflow-y-auto">
                 <DrawerHeader className="px-5 pt-5 pb-3">
-                  <DrawerTitle className="text-lg">เลือกช่วงวันที่รายงาน</DrawerTitle>
-                  <DrawerDescription>แตะวันเริ่มต้นและวันสิ้นสุด หรือเลือกช่วงที่ใช้บ่อยด้านล่าง</DrawerDescription>
+                  <DrawerTitle className="text-lg">เลือกช่วงวันที่</DrawerTitle>
+                  <DrawerDescription>แตะวันเริ่มต้นและวันสิ้นสุด หรือเลือกช่วงที่ใช้บ่อย</DrawerDescription>
                 </DrawerHeader>
                 <div className="px-5 pb-4">
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -410,49 +414,23 @@ export default function ReportsScreen() {
                       { label: "เดือนนี้", getRange: () => { const to = new Date(); return { from: new Date(to.getFullYear(), to.getMonth(), 1), to }; } },
                       { label: "เดือนที่แล้ว", getRange: () => { const now = new Date(); return { from: new Date(now.getFullYear(), now.getMonth() - 1, 1), to: new Date(now.getFullYear(), now.getMonth(), 0) }; } },
                     ].map((preset) => (
-                      <button
-                        key={preset.label}
-                        onClick={() => { const range = preset.getRange(); applyPreset(range.from, range.to); }}
-                        className="min-h-11 rounded-xl border border-border bg-background px-2 text-xs font-medium text-foreground hover:border-primary/60 hover:bg-primary/10 active:scale-95 transition"
-                      >
+                      <button key={preset.label} onClick={() => { const r = preset.getRange(); applyPreset(r.from, r.to); }} className="min-h-11 rounded-xl border border-border bg-background px-2 text-xs font-medium text-foreground hover:border-primary/60 hover:bg-primary/10 active:scale-95 transition">
                         {preset.label}
                       </button>
                     ))}
                   </div>
                   <div className="mt-4 rounded-2xl border border-border bg-background p-2 flex justify-center">
-                    <Calendar
-                      mode="range"
-                      selected={draftDateRange}
-                      onSelect={(range) => range && setDraftDateRange(range)}
-                      numberOfMonths={2}
-                      defaultMonth={draftDateRange.from}
-                      className="w-full"
-                    />
+                    <Calendar mode="range" selected={draftDateRange} onSelect={(range) => range && setDraftDateRange(range)} numberOfMonths={2} defaultMonth={draftDateRange.from} className="w-full" />
                   </div>
                 </div>
                 <DrawerFooter className="border-t border-border bg-card px-5 pb-5 sm:flex-row sm:justify-end">
-                  <button
-                    onClick={() => { const d = new Date(); setDraftDateRange({ from: d, to: d }); }}
-                    className="min-h-11 rounded-xl border border-border px-5 text-sm font-medium text-foreground hover:bg-muted active:scale-95 transition"
-                  >
-                    ล้างเป็นวันนี้
-                  </button>
-                  <button
-                    onClick={applyDateRange}
-                    className="min-h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition"
-                  >
-                    ใช้ช่วงวันที่นี้
-                  </button>
+                  <button onClick={() => { const d = new Date(); setDraftDateRange({ from: d, to: d }); }} className="min-h-11 rounded-xl border border-border px-5 text-sm font-medium text-foreground hover:bg-muted active:scale-95 transition">ล้างเป็นวันนี้</button>
+                  <button onClick={applyDateRange} className="min-h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-95 transition">ใช้ช่วงวันที่นี้</button>
                 </DrawerFooter>
               </div>
             </DrawerContent>
           </Drawer>
-          <button
-            onClick={() => moveDateRange(selectedDateCount)}
-            className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0"
-            title="ดูช่วงวันถัดไป"
-            aria-label="ดูช่วงวันถัดไป"
-          >
+          <button onClick={() => moveDateRange(selectedDateCount)} className="size-8 rounded-lg border border-border bg-background text-foreground hover:bg-muted active:scale-95 transition shrink-0" title="ช่วงถัดไป">
             <ChevronRight className="w-4 h-4 mx-auto" />
           </button>
         </div>
@@ -615,16 +593,6 @@ export default function ReportsScreen() {
               <option value="completed">สำเร็จ</option>
               <option value="cancelled">ยกเลิก</option>
             </select>
-            {branches.length > 0 && currentStaff?.role === "admin" && (
-              <select
-                value={filterBranch}
-                onChange={(e) => setFilterBranch(e.target.value === "all" ? "all" : Number(e.target.value))}
-                className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none"
-              >
-                <option value="all">ทุกสาขา</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
