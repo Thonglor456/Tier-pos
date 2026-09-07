@@ -459,10 +459,15 @@ function ModifiersSection() {
       {showAddGroup && (
         <div className="mb-4 bg-card rounded-2xl border border-primary/50 p-4 space-y-3">
           <p className="font-semibold text-foreground">กลุ่มใหม่</p>
-          <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="ชื่อกลุ่ม เช่น ระดับความหวาน" className="border-border" />
+          <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="ชื่อกลุ่ม เช่น ท็อปปิ้ง" className="border-border" />
           <div className="flex items-center gap-3">
             <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-primary" />
             <span className="text-sm text-primary">บังคับเลือก</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-muted-foreground whitespace-nowrap">เลือกได้สูงสุด</label>
+            <Input type="number" min="1" max="10" value={groupForm.maxSelect} onChange={(e) => setGroupForm({ ...groupForm, maxSelect: parseInt(e.target.value) || 1 })} className="border-border w-20 text-center" />
+            <span className="text-sm text-muted-foreground">รายการ</span>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => { upsertGroupMutation.mutate(groupForm); setShowAddGroup(false); }} className="bg-primary text-white flex-1">เพิ่ม</Button>
@@ -476,18 +481,29 @@ function ModifiersSection() {
           <div key={group.id} className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="flex items-center gap-3 p-4">
               {editGroupId === group.id ? (
-                <>
-                  <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} className="flex-1 border-border" />
-                  <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-primary" />
-                  <span className="text-xs text-muted-foreground">บังคับ</span>
-                  <button onClick={() => { upsertGroupMutation.mutate({ ...groupForm, id: group.id }); setEditGroupId(null); }} className="text-green-600"><Check className="w-5 h-5" /></button>
-                  <button onClick={() => setEditGroupId(null)} className="text-muted-foreground"><X className="w-5 h-5" /></button>
-                </>
+                <div className="flex-1 space-y-2">
+                  <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} className="border-border" placeholder="ชื่อกลุ่ม" />
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={groupForm.isRequired} onCheckedChange={(v) => setGroupForm({ ...groupForm, isRequired: v })} className="data-[state=checked]:bg-primary" />
+                      <span className="text-xs text-muted-foreground">บังคับเลือก</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">เลือกได้สูงสุด</span>
+                      <Input type="number" min="1" max="10" value={groupForm.maxSelect} onChange={(e) => setGroupForm({ ...groupForm, maxSelect: parseInt(e.target.value) || 1 })} className="border-border w-16 text-center h-8 text-sm" />
+                      <span className="text-xs text-muted-foreground">รายการ</span>
+                    </div>
+                    <div className="flex gap-2 ml-auto">
+                      <button onClick={() => { upsertGroupMutation.mutate({ ...groupForm, id: group.id }); setEditGroupId(null); }} className="text-green-600"><Check className="w-5 h-5" /></button>
+                      <button onClick={() => setEditGroupId(null)} className="text-muted-foreground"><X className="w-5 h-5" /></button>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
                   <button onClick={() => setExpandedGroup(expandedGroup === group.id ? null : group.id)} className="flex-1 text-left">
                     <p className="font-medium text-foreground">{group.name}</p>
-                    <p className="text-xs text-muted-foreground">{group.isRequired ? "บังคับเลือก" : "ไม่บังคับ"} · {group.options.length} ตัวเลือก</p>
+                    <p className="text-xs text-muted-foreground">{group.isRequired ? "บังคับเลือก" : "ไม่บังคับ"} · เลือกได้สูงสุด {group.maxSelect} · {group.options.length} ตัวเลือก</p>
                   </button>
                   <button onClick={() => { setEditGroupId(group.id); setGroupForm({ name: group.name, isRequired: group.isRequired, minSelect: group.minSelect, maxSelect: group.maxSelect, sortOrder: group.sortOrder }); }} className="text-muted-foreground hover:text-primary"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => deleteGroupMutation.mutate({ id: group.id })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
