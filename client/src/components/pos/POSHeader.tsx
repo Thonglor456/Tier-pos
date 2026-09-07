@@ -40,16 +40,18 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
   const isAdmin = currentStaff?.role === "admin";
   const { data: allBranches = [] } = trpc.branches.list.useQuery(undefined, { enabled: isAdmin });
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const desktopDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setBranchDropdownOpen(false);
-      }
+      const target = e.target as Node;
+      const inDesktop = desktopDropdownRef.current?.contains(target);
+      const inMobile = mobileDropdownRef.current?.contains(target);
+      if (!inDesktop && !inMobile) setBranchDropdownOpen(false);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside, true);
+    return () => document.removeEventListener("click", handleClickOutside, true);
   }, []);
   return (
     <header className="bg-card border-b border-border shrink-0 shadow-sm">
@@ -63,7 +65,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           <div className="hidden sm:block">
             <div className="text-base font-bold text-foreground leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</div>
             {isAdmin ? (
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative" ref={desktopDropdownRef}>
                 <button
                   onClick={() => setBranchDropdownOpen((v) => !v)}
                   className="flex items-center gap-0.5 text-[10px] text-primary leading-none hover:underline"
@@ -105,7 +107,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
         </div>
 
         {/* Mobile: branch name center */}
-        <div className="flex sm:hidden flex-1 flex-col items-center relative" ref={dropdownRef}>
+        <div className="flex sm:hidden flex-1 flex-col items-center relative" ref={mobileDropdownRef}>
           <span className="text-sm font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Tier Coffee</span>
           {isAdmin ? (
             <button onClick={() => setBranchDropdownOpen((v) => !v)} className="flex items-center gap-0.5 text-[10px] text-primary">
