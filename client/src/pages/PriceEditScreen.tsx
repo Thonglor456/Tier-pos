@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Search, Save, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, Save, RefreshCw, CupSoda } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useStaff } from "@/contexts/StaffContext";
 
-type Variant = {
+type VariantEdit = {
   id: number;
   name: string;
   priceWalkin: number;
@@ -13,12 +13,15 @@ type Variant = {
   priceLineman: number;
 };
 
-type EditState = Record<number, Variant[]>; // itemId → variants
+type ItemEditState = {
+  variants: VariantEdit[];
+  cupsPerServing: number;
+};
 
 export default function PriceEditScreen() {
   const { currentStaff } = useStaff();
   const [search, setSearch] = useState("");
-  const [edits, setEdits] = useState<EditState>({});
+  const [edits, setEdits] = useState<Record<number, ItemEditState>>({});
   const [saving, setSaving] = useState<Record<number, boolean>>({});
 
   const { data: items = [], refetch } = trpc.admin.items.useQuery();
@@ -39,28 +42,43 @@ export default function PriceEditScreen() {
     [items, search]
   );
 
-  function getVariants(item: typeof items[0]): Variant[] {
+  function getEditState(item: typeof items[0]): ItemEditState {
     if (edits[item.id]) return edits[item.id]!;
-    return item.variants.map((v) => ({
-      id: v.id,
-      name: v.name,
-      priceWalkin: parseFloat(String(v.priceWalkin)),
-      priceGrab: parseFloat(String(v.priceGrab)),
-      priceLineman: parseFloat(String((v as { priceLineman?: string | number }).priceLineman ?? v.priceGrab)),
-    }));
+    return {
+      cupsPerServing: (item as { cupsPerServing?: number }).cupsPerServing ?? 1,
+      variants: item.variants.map((v) => ({
+        id: v.id,
+        name: v.name,
+        priceWalkin: parseFloat(String(v.priceWalkin)),
+        priceGrab: parseFloat(String(v.priceGrab)),
+        priceLineman: parseFloat(String((v as { priceLineman?: string | number }).priceLineman ?? v.priceGrab)),
+      })),
+    };
   }
 
   function setPrice(itemId: number, variantId: number, field: "priceWalkin" | "priceGrab" | "priceLineman", val: string) {
     const item = items.find((i) => i.id === itemId)!;
-    const current = getVariants(item);
+    const current = getEditState(item);
     setEdits((prev) => ({
       ...prev,
-      [itemId]: current.map((v) => v.id === variantId ? { ...v, [field]: parseFloat(val) || 0 } : v),
+      [itemId]: {
+        ...current,
+        variants: current.variants.map((v) => v.id === variantId ? { ...v, [field]: parseFloat(val) || 0 } : v),
+      },
+    }));
+  }
+
+  function setCups(itemId: number, val: string) {
+    const item = items.find((i) => i.id === itemId)!;
+    const current = getEditState(item);
+    setEdits((prev) => ({
+      ...prev,
+      [itemId]: { ...current, cupsPerServing: Math.max(1, parseInt(val) || 1) },
     }));
   }
 
   async function saveItem(item: typeof items[0]) {
-    const variants = getVariants(item);
+    const state = getEditState(item);
     setSaving((p) => ({ ...p, [item.id]: true }));
     try {
       await upsert.mutateAsync({
@@ -70,10 +88,11 @@ export default function PriceEditScreen() {
         sku: item.sku ?? undefined,
         costPrice: parseFloat(String(item.costPrice)),
         hasVariants: item.hasVariants,
+        cupsPerServing: state.cupsPerServing,
         isActive: item.isActive,
         sortOrder: item.sortOrder,
         modifierGroupIds: item.modifierGroupIds,
-        variants: variants.map((v) => ({
+        variants: state.variants.map((v) => ({
           id: v.id,
           name: v.name,
           priceWalkin: v.priceWalkin,
@@ -81,8 +100,7 @@ export default function PriceEditScreen() {
           priceLineman: v.priceLineman,
         })),
       });
-      toast.success(`บันทึกราคา "${item.name}" แล้ว`);
-      // clear local edits for this item
+      toast.success(`บันทึก "${item.name}" แล้ว`);
       setEdits((prev) => { const n = { ...prev }; delete n[item.id]; return n; });
       refetch();
     } finally {
@@ -129,7 +147,7 @@ export default function PriceEditScreen() {
           <div className="text-center py-16 text-muted-foreground text-sm">ไม่พบเมนู</div>
         )}
         {filtered.map((item) => {
-          const variants = getVariants(item);
+          const state = getEditState(item);
           const dirty = hasEdits(item.id);
           const isSaving = saving[item.id] ?? false;
           return (
@@ -139,11 +157,27 @@ export default function PriceEditScreen() {
             >
               {/* Item header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-                <div>
-                  <p className="font-semibold text-foreground text-sm">{item.name}</p>
-                  {item.variants.length > 1 && (
-                    <p className="text-xs text-muted-foreground">{item.variants.length} ขนาด</p>
-                  )}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">{item.name}</p>
+                    {item.variants.length > 1 && (
+                      <p className="text-xs text-muted-foreground">{item.variants.length} ขนาด</p>
+                    )}
+                  </div>
+                  {/* cups per serving */}
+                  <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg px-2.5 py-1.5 border border-border/60">
+                    <CupSoda className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={state.cupsPerServing}
+                      onChange={(e) => setCups(item.id, e.target.value)}
+                      className="w-8 text-center text-sm font-semibold bg-transparent text-foreground focus:outline-none"
+                      title="จำนวนแก้วต่อเมนู (เมนูเซต)"
+                    />
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">แก้ว</span>
+                  </div>
                 </div>
                 {dirty && (
                   <button
@@ -166,7 +200,7 @@ export default function PriceEditScreen() {
                   <span className="text-[11px] font-medium text-muted-foreground text-right">Grab</span>
                   <span className="text-[11px] font-medium text-muted-foreground text-right">LINE MAN</span>
                 </div>
-                {variants.map((v) => (
+                {state.variants.map((v) => (
                   <div key={v.id} className="grid grid-cols-4 items-center gap-2 px-4 py-2.5">
                     <span className="text-sm text-foreground truncate">{v.name}</span>
                     {(["priceWalkin", "priceGrab", "priceLineman"] as const).map((field) => (

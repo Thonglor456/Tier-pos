@@ -58,6 +58,7 @@ export const items = mysqlTable("items", {
   sku: varchar("sku", { length: 50 }).unique(),
   costPrice: decimal("costPrice", { precision: 10, scale: 2 }).default("0").notNull(),
   hasVariants: boolean("hasVariants").default(false).notNull(),
+  cupsPerServing: int("cupsPerServing").default(1).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

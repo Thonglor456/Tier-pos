@@ -318,14 +318,16 @@ export async function getOrderQuantitySummary(opts: {
     itemName: orderItems.itemName,
     quantity: orderItems.quantity,
     totalPrice: orderItems.totalPrice,
+    cupsPerServing: items.cupsPerServing,
   })
     .from(orderItems)
+    .leftJoin(items, eq(orderItems.itemId, items.id))
     .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
 
   let totalCups = 0;
   const menuMap: Record<number, { itemId: number; itemName: string; cups: number; revenue: number }> = {};
   for (const item of soldItems) {
-    const quantity = item.quantity ?? 0;
+    const quantity = (item.quantity ?? 0) * (item.cupsPerServing ?? 1);
     totalCups += quantity;
     const channel = channelByOrderId.get(item.orderId);
     if (channel && channelBreakdown[channel]) channelBreakdown[channel]!.cupsSold += quantity;
@@ -389,17 +391,18 @@ export async function getAllItemsAdmin() {
 }
 
 export async function upsertItem(data: {
-  id?: number; categoryId: number; name: string; sku?: string; costPrice: number; hasVariants: boolean; isActive: boolean; sortOrder: number;
+  id?: number; categoryId: number; name: string; sku?: string; costPrice: number; hasVariants: boolean; cupsPerServing?: number; isActive: boolean; sortOrder: number;
   variants: Array<{ id?: number; name: string; priceWalkin: number; priceGrab: number; priceLineman?: number }>;
   modifierGroupIds: number[];
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  const cups = data.cupsPerServing ?? 1;
   let itemId = data.id;
   if (itemId) {
-    await db.update(items).set({ categoryId: data.categoryId, name: data.name, sku: data.sku ?? null, costPrice: String(data.costPrice), hasVariants: data.hasVariants, isActive: data.isActive, sortOrder: data.sortOrder }).where(eq(items.id, itemId));
+    await db.update(items).set({ categoryId: data.categoryId, name: data.name, sku: data.sku ?? null, costPrice: String(data.costPrice), hasVariants: data.hasVariants, cupsPerServing: cups, isActive: data.isActive, sortOrder: data.sortOrder }).where(eq(items.id, itemId));
   } else {
-    await db.insert(items).values({ categoryId: data.categoryId, name: data.name, sku: data.sku ?? null, costPrice: String(data.costPrice), hasVariants: data.hasVariants, isActive: data.isActive, sortOrder: data.sortOrder });
+    await db.insert(items).values({ categoryId: data.categoryId, name: data.name, sku: data.sku ?? null, costPrice: String(data.costPrice), hasVariants: data.hasVariants, cupsPerServing: cups, isActive: data.isActive, sortOrder: data.sortOrder });
     const [newItem] = await db.select().from(items).orderBy(desc(items.id)).limit(1);
     itemId = newItem!.id;
   }
@@ -608,11 +611,16 @@ export async function getDashboardTodaySummary(branchId?: number) {
   let cupsSold = 0;
   const orderIds = completed.map((order) => order.id);
   if (orderIds.length > 0) {
-    const soldItems = await db.select({ orderId: orderItems.orderId, quantity: orderItems.quantity })
+    const soldItems = await db.select({
+      orderId: orderItems.orderId,
+      quantity: orderItems.quantity,
+      cupsPerServing: items.cupsPerServing,
+    })
       .from(orderItems)
+      .leftJoin(items, eq(orderItems.itemId, items.id))
       .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map((id) => sql`${id}`), sql`, `)})`);
     for (const item of soldItems) {
-      const quantity = item.quantity ?? 0;
+      const quantity = (item.quantity ?? 0) * (item.cupsPerServing ?? 1);
       cupsSold += quantity;
       const channel = channelByOrderId.get(item.orderId);
       if (channel && channelBreakdown[channel]) channelBreakdown[channel]!.cupsSold += quantity;

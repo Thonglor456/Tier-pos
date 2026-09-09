@@ -200,6 +200,7 @@ export const appRouter = router({
         sku: z.string().optional(),
         costPrice: z.number(),
         hasVariants: z.boolean(),
+        cupsPerServing: z.number().int().min(1).optional(),
         isActive: z.boolean(),
         sortOrder: z.number(),
         variants: z.array(z.object({ id: z.number().optional(), name: z.string(), priceWalkin: z.number(), priceGrab: z.number(), priceLineman: z.number().optional() })),
