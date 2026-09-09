@@ -9,7 +9,7 @@ type ModGroup = { id: number; name: string };
 type Variant = { id?: number; name: string; priceWalkin: number; priceGrab: number };
 type ItemFull = {
   id: number; categoryId: number; name: string; sku: string | null; costPrice: string | number;
-  hasVariants: boolean; isActive: boolean; sortOrder: number;
+  hasVariants: boolean; cupsPerServing?: number; isActive: boolean; sortOrder: number;
   variants: Array<{ id: number; name: string; priceWalkin: string | number; priceGrab: string | number }>;
   modifierGroupIds: number[];
 };
@@ -30,6 +30,7 @@ export default function ItemFormModal({ itemId, items, categories, modifierGroup
   const [categoryId, setCategoryId] = useState(existing?.categoryId ?? (categories[0]?.id ?? 1));
   const [sku, setSku] = useState(existing?.sku ?? "");
   const [costPrice, setCostPrice] = useState(String(existing?.costPrice ?? "0"));
+  const [cupsPerServing, setCupsPerServing] = useState(existing?.cupsPerServing ?? 1);
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
   const [sortOrder, setSortOrder] = useState(String(existing?.sortOrder ?? "0"));
   const [variants, setVariants] = useState<Variant[]>(
@@ -61,6 +62,7 @@ export default function ItemFormModal({ itemId, items, categories, modifierGroup
       sku: sku || undefined,
       costPrice: parseFloat(costPrice) || 0,
       hasVariants: variants.length > 1,
+      cupsPerServing,
       isActive,
       sortOrder: parseInt(sortOrder) || 0,
       variants,
@@ -96,6 +98,11 @@ export default function ItemFormModal({ itemId, items, categories, modifierGroup
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">ต้นทุน (฿)</label>
               <input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">🥤 แก้วต่อเมนู</label>
+              <input type="number" min="1" max="20" value={cupsPerServing} onChange={(e) => setCupsPerServing(Math.max(1, parseInt(e.target.value) || 1))} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              <p className="text-[10px] text-muted-foreground mt-0.5">เมนูเซต/ดับเบิ้ล ใส่ 2 ขึ้นไป</p>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">ลำดับ</label>
