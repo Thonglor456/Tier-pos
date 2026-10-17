@@ -53,7 +53,7 @@ export default function DashboardScreen() {
   }
 
   const { data: branches = [] } = trpc.branches.list.useQuery();
-  const activeBranches = branches.filter((b) => b.isActive);
+  const activeBranches = branches.filter((b) => b.isActive && b.type === "shop");
   const branchInput = selectedBranchId ? { branchId: selectedBranchId } : undefined;
 
   const { data: summary, isLoading: loadingSummary } = trpc.dashboard.todaySummary.useQuery(branchInput, { refetchInterval: 30000 });
@@ -64,7 +64,7 @@ export default function DashboardScreen() {
   const { data: weeklyData } = trpc.dashboard.weeklyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
   const { data: monthlyData } = trpc.dashboard.monthlyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
   const { data: hourlyData } = trpc.dashboard.hourlyRevenue.useQuery(branchInput, { refetchInterval: 60000 });
-  const { data: recentOrders } = trpc.dashboard.recentOrders.useQuery({ limit: 10 }, { refetchInterval: 15000 });
+  const { data: recentOrders } = trpc.dashboard.recentOrders.useQuery({ limit: 10, branchId: selectedBranchId }, { refetchInterval: 15000 });
   const { data: channels = [] } = trpc.channels.list.useQuery();
 
   const chartData: ChartEntry[] | undefined = chartPeriod === "week"

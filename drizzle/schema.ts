@@ -1,12 +1,15 @@
 import {
   boolean,
+  date,
   decimal,
+  index,
   int,
   mysqlEnum,
   mysqlTable,
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
 import { time } from "drizzle-orm/mysql-core";
@@ -132,6 +135,8 @@ export const orders = mysqlTable("orders", {
   cancelledBy: varchar("cancelledBy", { length: 100 }),
   cancelReason: text("cancelReason"),
   cancelledAt: timestamp("cancelledAt"),
+  // ต้นทุนวัตถุดิบของบิล ณ เวลาขาย (ใช้ทำกำไร-ขาดทุน) — บิลเก่าก่อนมีระบบสต็อกเป็น null
+  costAmount: decimal("costAmount", { precision: 10, scale: 2 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -187,6 +192,8 @@ export const salesChannels = mysqlTable("sales_channels", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 50 }).notNull().unique(),
   slug: varchar("slug", { length: 50 }).notNull().unique(),
+  // ค่า GP ที่แอปเดลิเวอรีหัก (%) — หน้าร้านเป็น 0
+  gpPercent: decimal("gpPercent", { precision: 5, scale: 2 }).default("0").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -194,13 +201,137 @@ export const salesChannels = mysqlTable("sales_channels", {
 });
 export type SalesChannel = typeof salesChannels.$inferSelect;
 
+export const BRANCH_TYPES = ["shop", "warehouse"] as const;
+export type BranchType = (typeof BRANCH_TYPES)[number];
+
 export const branches = mysqlTable("branches", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   address: text("address"),
   phone: varchar("phone", { length: 20 }),
+  // shop = ร้านที่ขาย, warehouse = คลังกลาง (ไม่มีหน้าขาย สาขามาเบิกของไป)
+  type: mysqlEnum("type", BRANCH_TYPES).default("shop").notNull(),
+  // สาขาที่เบิกของจากคลังกลาง (ร้านที่สั่งของเองทั้งหมดปิดไว้)
+  usesCentralStock: boolean("usesCentralStock").default(true).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type Branch = typeof branches.$inferSelect;
 export type InsertBranch = typeof branches.$inferInsert;
+
+// ─── Stock: Ingredients ───────────────────────────────────────────────────────
+export const ingredients = mysqlTable("ingredients", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  unit: varchar("unit", { length: 20 }).notNull(), // g, ml, ชิ้น
+  // ต้นทุนเฉลี่ยต่อหน่วย (moving average จากการรับของเข้า)
+  costPerUnit: decimal("costPerUnit", { precision: 12, scale: 4 }).default("0").notNull(),
+  // แจ้งเตือนเมื่อคงเหลือในสาขาต่ำกว่าค่านี้
+  reorderLevel: decimal("reorderLevel", { precision: 14, scale: 3 }).default("0").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Ingredient = typeof ingredients.$inferSelect;
+
+// ─── Stock: Recipes (สูตรต่อเมนู) ──────────────────────────────────────────────
+// variantId = null ใช้กับทุกขนาด; ถ้าขนาดไหนมีสูตรของตัวเอง จะใช้สูตรของขนาดนั้นแทน
+export const recipeLines = mysqlTable("recipe_lines", {
+  id: int("id").autoincrement().primaryKey(),
+  itemId: int("itemId").notNull(),
+  variantId: int("variantId"),
+  ingredientId: int("ingredientId").notNull(),
+  quantity: decimal("quantity", { precision: 12, scale: 3 }).notNull(),
+}, (t) => [index("recipe_lines_item_idx").on(t.itemId)]);
+export type RecipeLine = typeof recipeLines.$inferSelect;
+
+// ตัวเลือกที่ใช้วัตถุดิบเพิ่ม/แทน เช่น เพิ่มช็อต (+18g), นมโอ๊ต (นมวัว −150, นมโอ๊ต +150)
+export const modifierRecipeLines = mysqlTable("modifier_recipe_lines", {
+  id: int("id").autoincrement().primaryKey(),
+  modifierOptionId: int("modifierOptionId").notNull(),
+  ingredientId: int("ingredientId").notNull(),
+  quantity: decimal("quantity", { precision: 12, scale: 3 }).notNull(), // ติดลบได้
+}, (t) => [index("modifier_recipe_lines_option_idx").on(t.modifierOptionId)]);
+export type ModifierRecipeLine = typeof modifierRecipeLines.$inferSelect;
+
+// ─── Stock: คงเหลือรายสาขา ───────────────────────────────────────────────────
+export const branchStock = mysqlTable("branch_stock", {
+  branchId: int("branchId").notNull(),
+  ingredientId: int("ingredientId").notNull(),
+  quantity: decimal("quantity", { precision: 14, scale: 3 }).default("0").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.branchId, t.ingredientId] })]);
+export type BranchStock = typeof branchStock.$inferSelect;
+
+// ─── Stock: ความเคลื่อนไหวทุกครั้ง (append-only) ──────────────────────────────
+export const STOCK_MOVEMENT_TYPES = [
+  "sale", "sale_cancel", "receive", "count", "waste", "transfer_out", "transfer_in", "transfer_return",
+  "withdraw_out", "withdraw_in", "return_out", "return_in",
+] as const;
+export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
+
+export const stockMovements = mysqlTable("stock_movements", {
+  id: int("id").autoincrement().primaryKey(),
+  branchId: int("branchId").notNull(),
+  ingredientId: int("ingredientId").notNull(),
+  type: mysqlEnum("type", STOCK_MOVEMENT_TYPES).notNull(),
+  quantity: decimal("quantity", { precision: 14, scale: 3 }).notNull(), // + เข้า / − ออก
+  unitCost: decimal("unitCost", { precision: 12, scale: 4 }).default("0").notNull(),
+  orderId: int("orderId"),
+  transferId: int("transferId"),
+  note: text("note"),
+  staffId: int("staffId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => [
+  index("stock_movements_branch_time_idx").on(t.branchId, t.createdAt),
+  index("stock_movements_order_idx").on(t.orderId),
+]);
+export type StockMovement = typeof stockMovements.$inferSelect;
+
+// ─── Stock: โอนของระหว่างสาขา ─────────────────────────────────────────────────
+// transfer = ร้านส่งให้ร้าน (ปลายทางกดรับ), withdrawal = สาขาเบิกจากคลัง, return = สาขาคืนของเข้าคลัง
+// เบิกและคืนเสร็จในขั้นเดียว เพราะคนของสาขาหยิบหรือนำของไปเองแล้วบันทึก
+export const STOCK_TRANSFER_KINDS = ["transfer", "withdrawal", "return"] as const;
+export type StockTransferKind = (typeof STOCK_TRANSFER_KINDS)[number];
+
+export const stockTransfers = mysqlTable("stock_transfers", {
+  id: int("id").autoincrement().primaryKey(),
+  kind: mysqlEnum("kind", STOCK_TRANSFER_KINDS).default("transfer").notNull(),
+  fromBranchId: int("fromBranchId").notNull(),
+  toBranchId: int("toBranchId").notNull(),
+  status: mysqlEnum("status", ["in_transit", "received", "cancelled"]).default("in_transit").notNull(),
+  note: text("note"),
+  createdBy: int("createdBy"),
+  receivedBy: int("receivedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  receivedAt: timestamp("receivedAt"),
+});
+export type StockTransfer = typeof stockTransfers.$inferSelect;
+
+export const stockTransferLines = mysqlTable("stock_transfer_lines", {
+  id: int("id").autoincrement().primaryKey(),
+  transferId: int("transferId").notNull(),
+  ingredientId: int("ingredientId").notNull(),
+  quantity: decimal("quantity", { precision: 14, scale: 3 }).notNull(),
+  receivedQuantity: decimal("receivedQuantity", { precision: 14, scale: 3 }),
+  unitCost: decimal("unitCost", { precision: 12, scale: 4 }).default("0").notNull(),
+}, (t) => [index("stock_transfer_lines_transfer_idx").on(t.transferId)]);
+export type StockTransferLine = typeof stockTransferLines.$inferSelect;
+
+// ─── Accounting: กระทบยอดรายวันต่อสาขา ────────────────────────────────────────
+// source = "transfer" (โอนเข้าบัญชีร้าน) หรือ slug ของช่องทางเดลิเวอรี (grab, lineman)
+export const reconciliations = mysqlTable("reconciliations", {
+  id: int("id").autoincrement().primaryKey(),
+  branchId: int("branchId").notNull(),
+  businessDate: date("businessDate", { mode: "string" }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(),
+  grossAmount: decimal("grossAmount", { precision: 12, scale: 2 }).notNull(), // ยอดขายในระบบ ณ ตอนกระทบ
+  expectedNet: decimal("expectedNet", { precision: 12, scale: 2 }).notNull(), // หลังหัก GP ตามที่ตั้งไว้
+  actualNet: decimal("actualNet", { precision: 12, scale: 2 }).notNull(), // ยอดที่ได้รับจริง
+  feeAmount: decimal("feeAmount", { precision: 12, scale: 2 }).default("0").notNull(), // GP ที่ถูกหักจริง
+  note: text("note"),
+  staffId: int("staffId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => [uniqueIndex("reconciliations_branch_date_source_uq").on(t.branchId, t.businessDate, t.source)]);
+export type Reconciliation = typeof reconciliations.$inferSelect;

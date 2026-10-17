@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import * as db from "./db";
+import { resetPinAttempts } from "./_core/staffAuth";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
@@ -40,12 +42,22 @@ vi.mock("./db", async (importOriginal) => {
     upsertItem: vi.fn().mockResolvedValue(1),
     toggleItemActive: vi.fn().mockResolvedValue(undefined),
     upsertCategory: vi.fn().mockResolvedValue(undefined),
+    getOrderWithItems: vi.fn().mockResolvedValue({ id: 1, branchId: 1, items: [] }),
+    getLoginPosUsers: vi.fn().mockResolvedValue([{ id: 1, name: "ผู้จัดการ", role: "manager", isActive: true, branchId: 1 }]),
+    getPosUserRole: vi.fn().mockImplementation(async (id: number) => (id === 99 ? "admin" : "staff")),
+    verifyStaffPin: vi.fn().mockImplementation(async (staffId: number, pin: string) =>
+      staffId === 1 && pin === "1234" ? { id: 1, name: "ผู้จัดการ", pinCode: "1234", role: "manager", isActive: true, branchId: 1 } : null),
   };
 });
 
-function createCtx(): TrpcContext {
+type Staff = NonNullable<TrpcContext["staff"]>;
+const STAFF: Staff = { id: 7, name: "พนักงาน", role: "staff", branchId: 1 };
+const MANAGER: Staff = { id: 1, name: "ผู้จัดการ", role: "manager", branchId: 1 };
+
+function createCtx(staff: Staff | null = STAFF): TrpcContext {
   return {
     user: null,
+    staff,
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: { clearCookie: vi.fn() } as unknown as TrpcContext["res"],
   };
@@ -96,7 +108,7 @@ describe("orders router", () => {
   });
 
   it("returns daily summary", async () => {
-    const caller = appRouter.createCaller(createCtx());
+    const caller = appRouter.createCaller(createCtx(MANAGER));
     const result = await caller.orders.dailySummary({ date: "2026-08-08" });
     expect(result?.totalRevenue).toBe(1000);
     expect(result?.completedCount).toBe(10);
@@ -140,5 +152,68 @@ describe("orders router - cancel with PIN", () => {
   it("rejects cancellation with wrong PIN", async () => {
     const caller = appRouter.createCaller(createCtx());
     await expect(caller.orders.cancel({ orderId: 1, pin: "0000", cancelReason: "test" })).rejects.toThrow();
+  });
+});
+
+describe("server-side permissions", () => {
+  beforeEach(() => resetPinAttempts());
+
+  it("rejects every POS call without a PIN session", async () => {
+    const caller = appRouter.createCaller(createCtx(null));
+    await expect(caller.menu.categories()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.orders.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.posUsers.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("does not let staff cancel bills from reports without a manager", async () => {
+    const caller = appRouter.createCaller(createCtx(STAFF));
+    await expect(caller.orders.cancelDirect({ orderId: 1, cancelReason: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("records the logged-in manager's name on direct cancel", async () => {
+    const caller = appRouter.createCaller(createCtx(MANAGER));
+    await caller.orders.cancelDirect({ orderId: 1, cancelReason: "ทำบิลซ้ำ" });
+    expect(db.cancelOrder).toHaveBeenLastCalledWith(1, "ผู้จัดการ", "ทำบิลซ้ำ");
+  });
+
+  it("blocks bills from another branch", async () => {
+    const caller = appRouter.createCaller(createCtx({ ...MANAGER, branchId: 2 }));
+    await expect(caller.orders.cancelDirect({ orderId: 1, cancelReason: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("takes staff and branch for a new order from the session, not the device", async () => {
+    const caller = appRouter.createCaller(createCtx(STAFF));
+    await caller.orders.create({
+      salesChannel: "walkin", paymentMethod: "cash", totalAmount: 45, staffId: 999, branchId: 5,
+      items: [{ itemId: 1, variantId: 1, itemName: "x", variantName: "y", quantity: 1, basePrice: 45, modifiersPrice: 0, totalPrice: 45, modifiers: [] }],
+    });
+    expect(db.createOrder).toHaveBeenLastCalledWith(expect.objectContaining({ staffId: 7, branchId: 1 }));
+  });
+
+  it("locks branch-bound staff to their branch when listing orders", async () => {
+    const caller = appRouter.createCaller(createCtx(STAFF));
+    await caller.orders.list({ branchId: 2 });
+    expect(db.getOrders).toHaveBeenLastCalledWith(expect.objectContaining({ branchId: 1 }));
+  });
+
+  it("lets admins see any branch", async () => {
+    const caller = appRouter.createCaller(createCtx({ id: 2, name: "เจ้าของ", role: "admin", branchId: null }));
+    await caller.orders.list({ branchId: 2 });
+    expect(db.getOrders).toHaveBeenLastCalledWith(expect.objectContaining({ branchId: 2 }));
+  });
+
+  it("stops managers from creating or editing admin accounts", async () => {
+    const caller = appRouter.createCaller(createCtx(MANAGER));
+    await expect(caller.posUsers.upsert({ name: "x", pinCode: "1111", role: "admin" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.posUsers.upsert({ id: 99, name: "x", role: "staff" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("returns a session token on correct login PIN and locks after 5 wrong tries", async () => {
+    const caller = appRouter.createCaller(createCtx(null));
+    const ok = await caller.posUsers.verifyStaffPin({ staffId: 1, pin: "1234" });
+    expect(ok?.token).toEqual(expect.any(String));
+    expect(ok).not.toHaveProperty("pinCode");
+    for (let i = 0; i < 5; i++) expect(await caller.posUsers.verifyStaffPin({ staffId: 1, pin: "0000" })).toBeNull();
+    await expect(caller.posUsers.verifyStaffPin({ staffId: 1, pin: "1234" })).rejects.toThrow(/รอ/);
   });
 });

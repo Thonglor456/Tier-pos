@@ -1,5 +1,6 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2";
 import type { InsertUser } from "../drizzle/schema";
 import {
   categories,
@@ -18,13 +19,18 @@ import {
 } from "../drizzle/schema";
 import { branches } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { deductStockForOrder, reverseStockForOrder } from "./stock";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      // drizzle อ่าน/เขียน timestamp เป็น UTC จึงบังคับให้ทุก connection ใช้ UTC ด้วย
+      // ไม่งั้น NOW() / DEFAULT now() จะเก็บเวลาตาม timezone ของเครื่อง DB แล้วเพี้ยน 7 ชั่วโมง
+      const pool = createPool({ uri: process.env.DATABASE_URL });
+      pool.on("connection", (conn) => { conn.query("SET time_zone = '+00:00'"); });
+      _db = drizzle(pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -146,40 +152,42 @@ export type CreateOrderInput = {
 export async function createOrder(input: CreateOrderInput) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  if (input.branchId) {
+    const [b] = await db.select({ type: branches.type }).from(branches).where(eq(branches.id, input.branchId)).limit(1);
+    if (b?.type === "warehouse") throw new Error("คลังกลางเปิดบิลขายไม่ได้ — เลือกสาขาที่เป็นร้าน");
+  }
   const orderNumber = await generateOrderNumber();
-  await db.insert(orders).values({
-    orderNumber,
-    salesChannel: input.salesChannel,
-    status: "completed",
-    totalAmount: String(input.totalAmount),
-    paymentMethod: input.paymentMethod,
-    cashReceived: input.cashReceived != null ? String(input.cashReceived) : null,
-    changeAmount: input.changeAmount != null ? String(input.changeAmount) : null,
-    vatAmount: input.vatAmount != null ? String(input.vatAmount) : "0",
-    staffId: input.staffId ?? null,
-    branchId: input.branchId ?? null,
-  });
-  const [newOrder] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
-  if (!newOrder) throw new Error("Failed to create order");
-  for (const item of input.items) {
-    await db.insert(orderItems).values({
-      orderId: newOrder.id,
-      itemId: item.itemId,
-      variantId: item.variantId,
-      itemName: item.itemName,
-      variantName: item.variantName,
-      quantity: item.quantity,
-      basePrice: String(item.basePrice),
-      modifiersPrice: String(item.modifiersPrice),
-      totalPrice: String(item.totalPrice),
+  return db.transaction(async (tx) => {
+    await tx.insert(orders).values({
+      orderNumber,
+      salesChannel: input.salesChannel,
+      status: "completed",
+      totalAmount: String(input.totalAmount),
+      paymentMethod: input.paymentMethod,
+      cashReceived: input.cashReceived != null ? String(input.cashReceived) : null,
+      changeAmount: input.changeAmount != null ? String(input.changeAmount) : null,
+      vatAmount: input.vatAmount != null ? String(input.vatAmount) : "0",
+      staffId: input.staffId ?? null,
+      branchId: input.branchId ?? null,
     });
-    const [newItem] = await db.select().from(orderItems)
-      .where(and(eq(orderItems.orderId, newOrder.id), eq(orderItems.itemId, item.itemId), eq(orderItems.variantId, item.variantId)))
-      .orderBy(desc(orderItems.id)).limit(1);
-    if (newItem && item.modifiers.length > 0) {
+    const [newOrder] = await tx.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+    if (!newOrder) throw new Error("Failed to create order");
+    for (const item of input.items) {
+      const [res] = await tx.insert(orderItems).values({
+        orderId: newOrder.id,
+        itemId: item.itemId,
+        variantId: item.variantId,
+        itemName: item.itemName,
+        variantName: item.variantName,
+        quantity: item.quantity,
+        basePrice: String(item.basePrice),
+        modifiersPrice: String(item.modifiersPrice),
+        totalPrice: String(item.totalPrice),
+      });
+      const orderItemId = (res as { insertId: number }).insertId;
       for (const mod of item.modifiers) {
-        await db.insert(orderItemModifiers).values({
-          orderItemId: newItem.id,
+        await tx.insert(orderItemModifiers).values({
+          orderItemId,
           modifierOptionId: mod.modifierOptionId,
           modifierGroupName: mod.modifierGroupName,
           modifierName: mod.modifierName,
@@ -187,19 +195,38 @@ export async function createOrder(input: CreateOrderInput) {
         });
       }
     }
-  }
-  return newOrder;
+    // ตัดวัตถุดิบตามสูตรและบันทึกต้นทุนของบิล — อยู่ใน transaction เดียวกับบิล
+    const costAmount = await deductStockForOrder(tx, {
+      orderId: newOrder.id,
+      branchId: input.branchId ?? null,
+      staffId: input.staffId ?? null,
+      lines: input.items.map((i) => ({
+        itemId: i.itemId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+        modifierOptionIds: i.modifiers.map((m) => m.modifierOptionId),
+      })),
+    });
+    await tx.update(orders).set({ costAmount: String(costAmount) }).where(eq(orders.id, newOrder.id));
+    return { ...newOrder, costAmount: String(costAmount) };
+  });
 }
 
 export async function cancelOrder(orderId: number, cancelledBy: string, cancelReason: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(orders).set({
-    status: "cancelled",
-    cancelledBy,
-    cancelReason,
-    cancelledAt: new Date(),
-  }).where(eq(orders.id, orderId));
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).for("update");
+    if (!order) throw new Error("ไม่พบบิลนี้");
+    if (order.status === "cancelled") return; // ยกเลิกไปแล้ว ไม่คืนสต็อกซ้ำ
+    await tx.update(orders).set({
+      status: "cancelled",
+      cancelledBy,
+      cancelReason,
+      cancelledAt: new Date(),
+    }).where(eq(orders.id, orderId));
+    await reverseStockForOrder(tx, orderId);
+  });
 }
 
 export async function getOrderWithItems(orderId: number) {
@@ -234,12 +261,14 @@ export async function getOrders(opts: { startDate?: Date; endDate?: Date; channe
   return db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
 }
 
-export async function getDailySummary(date: Date) {
+export async function getDailySummary(date: Date, branchId?: number) {
   const db = await getDb();
   if (!db) return null;
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const end = new Date(start.getTime() + 86400000);
-  const allOrders = await db.select().from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+  const conds = [gte(orders.createdAt, start), lte(orders.createdAt, end)];
+  if (branchId) conds.push(eq(orders.branchId, branchId));
+  const allOrders = await db.select().from(orders).where(and(...conds));
   const completed = allOrders.filter((o) => o.status === "completed");
   const cancelled = allOrders.filter((o) => o.status === "cancelled");
   const totalRevenue = completed.reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0);
@@ -343,8 +372,32 @@ export async function getOrderQuantitySummary(opts: {
 export async function verifyManagerPin(pin: string) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select().from(posUsers).where(and(eq(posUsers.pinCode, pin), eq(posUsers.role, "manager"), eq(posUsers.isActive, true))).limit(1);
+  const result = await db.select().from(posUsers)
+    .where(and(eq(posUsers.pinCode, pin), inArray(posUsers.role, ["manager", "admin"]), eq(posUsers.isActive, true))).limit(1);
   return result[0] ?? null;
+}
+
+export async function getActivePosUser(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(posUsers).where(and(eq(posUsers.id, id), eq(posUsers.isActive, true))).limit(1);
+  return result[0] ?? null;
+}
+
+// ไม่ส่ง PIN ออกไปนอกเซิร์ฟเวอร์เด็ดขาด
+const publicPosUserColumns = {
+  id: posUsers.id,
+  name: posUsers.name,
+  role: posUsers.role,
+  isActive: posUsers.isActive,
+  branchId: posUsers.branchId,
+};
+
+/** รายชื่อสำหรับหน้าเข้าสู่ระบบ (ยังไม่ล็อกอิน) */
+export async function getLoginPosUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select(publicPosUserColumns).from(posUsers).where(eq(posUsers.isActive, true)).orderBy(posUsers.id);
 }
 
 export async function verifyStaffPin(staffId: number, pin: string) {
@@ -363,15 +416,29 @@ export async function deletePosUser(id: number) {
 export async function getPosUsers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(posUsers).orderBy(posUsers.id);
+  return db.select(publicPosUserColumns).from(posUsers).orderBy(posUsers.id);
 }
 
-export async function upsertPosUser(data: { id?: number; name: string; pinCode: string; role: "staff" | "manager" | "admin"; branchId?: number | null }) {
+export async function getPosUserRole(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select({ role: posUsers.role }).from(posUsers).where(eq(posUsers.id, id)).limit(1);
+  return row?.role ?? null;
+}
+
+/** pinCode ว่างตอนแก้ไข = ใช้ PIN เดิม */
+export async function upsertPosUser(data: { id?: number; name: string; pinCode?: string; role: "staff" | "manager" | "admin"; branchId?: number | null }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {
-    await db.update(posUsers).set({ name: data.name, pinCode: data.pinCode, role: data.role, branchId: data.branchId ?? null }).where(eq(posUsers.id, data.id));
+    await db.update(posUsers).set({
+      name: data.name,
+      role: data.role,
+      branchId: data.branchId ?? null,
+      ...(data.pinCode ? { pinCode: data.pinCode } : {}),
+    }).where(eq(posUsers.id, data.id));
   } else {
+    if (!data.pinCode) throw new Error("กรุณาตั้ง PIN");
     await db.insert(posUsers).values({ name: data.name, pinCode: data.pinCode, role: data.role, branchId: data.branchId ?? null });
   }
 }
@@ -426,6 +493,22 @@ export async function upsertItem(data: {
     await db.insert(itemModifierGroups).values({ itemId, modifierGroupId: mgId });
   }
   return itemId;
+}
+
+/** หน้าแก้ราคา (พนักงานทุกคนใช้ได้): แก้ได้เฉพาะราคาและจำนวนแก้วต่อเซ็ต */
+export async function updateItemPrices(data: {
+  itemId: number;
+  cupsPerServing: number;
+  variants: Array<{ id: number; priceWalkin: number; priceGrab: number; priceLineman: number }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(items).set({ cupsPerServing: data.cupsPerServing }).where(eq(items.id, data.itemId));
+  for (const v of data.variants) {
+    await db.update(itemVariants)
+      .set({ priceWalkin: String(v.priceWalkin), priceGrab: String(v.priceGrab), priceLineman: String(v.priceLineman) })
+      .where(and(eq(itemVariants.id, v.id), eq(itemVariants.itemId, data.itemId)));
+  }
 }
 
 export async function toggleItemActive(itemId: number, isActive: boolean) {
@@ -495,13 +578,14 @@ export async function getAllSalesChannels() {
   return db.select().from(salesChannels).orderBy(salesChannels.sortOrder);
 }
 
-export async function upsertSalesChannel(data: { id?: number; name: string; slug: string; isActive: boolean; sortOrder: number }) {
+export async function upsertSalesChannel(data: { id?: number; name: string; slug: string; isActive: boolean; sortOrder: number; gpPercent?: number }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  const gp = data.gpPercent != null ? { gpPercent: String(data.gpPercent) } : {};
   if (data.id) {
-    await db.update(salesChannels).set({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder }).where(eq(salesChannels.id, data.id));
+    await db.update(salesChannels).set({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder, ...gp }).where(eq(salesChannels.id, data.id));
   } else {
-    await db.insert(salesChannels).values({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder });
+    await db.insert(salesChannels).values({ name: data.name, slug: data.slug, isActive: data.isActive, sortOrder: data.sortOrder, ...gp });
   }
 }
 
@@ -551,14 +635,21 @@ export async function getBranches() {
   if (!db) return [];
   return db.select().from(branches).orderBy(branches.id);
 }
-export async function upsertBranch(input: { id?: number; name: string; address?: string; phone?: string; isActive: boolean }) {
+export async function upsertBranch(input: {
+  id?: number; name: string; address?: string; phone?: string; isActive: boolean;
+  type?: "shop" | "warehouse"; usesCentralStock?: boolean;
+}) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  const extra = {
+    ...(input.type ? { type: input.type } : {}),
+    ...(input.usesCentralStock != null ? { usesCentralStock: input.usesCentralStock } : {}),
+  };
   if (input.id) {
-    await db.update(branches).set({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive }).where(eq(branches.id, input.id));
+    await db.update(branches).set({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive, ...extra }).where(eq(branches.id, input.id));
     return input.id;
   } else {
-    const [result] = await db.insert(branches).values({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive });
+    const [result] = await db.insert(branches).values({ name: input.name, address: input.address ?? null, phone: input.phone ?? null, isActive: input.isActive, ...extra });
     return (result as { insertId: number }).insertId;
   }
 }
@@ -566,17 +657,6 @@ export async function deleteBranch(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(branches).where(eq(branches.id, id));
-}
-
-export async function cancelOrderDirect(orderId: number, cancelReason: string) {
-  const db = await getDb();
-  if (!db) return;
-  await db.update(orders).set({
-    status: "cancelled",
-    cancelledBy: "พนักงาน",
-    cancelReason,
-    cancelledAt: new Date(),
-  }).where(eq(orders.id, orderId));
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -721,7 +801,7 @@ export async function getDashboardBranchComparison() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const allBranches = await db.select().from(branches).where(eq(branches.isActive, true));
+  const allBranches = await db.select().from(branches).where(and(eq(branches.isActive, true), eq(branches.type, "shop")));
   const todayOrders = await db.select().from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
   return allBranches.map((branch) => {
     const branchOrders = todayOrders.filter((o) => o.branchId === branch.id);
@@ -740,10 +820,12 @@ export async function getDashboardBranchComparison() {
   });
 }
 
-export async function getDashboardRecentOrders(limit = 10) {
+export async function getDashboardRecentOrders(limit = 10, branchId?: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+  return db.select().from(orders)
+    .where(branchId ? eq(orders.branchId, branchId) : undefined)
+    .orderBy(desc(orders.createdAt)).limit(limit);
 }
 
 // ─── Peak Hours (รายชั่วโมงวันนี้) ───────────────────────────────────────────
@@ -836,10 +918,17 @@ export async function getDashboardTopItemsWithVariant(period: "day" | "month", l
 }
 
 // ─── Order Items by Order IDs (สำหรับ Export รายละเอียด) ─────────────────────
-export async function getOrderItemsByIds(orderIds: number[]) {
+export async function getOrderItemsByIds(orderIds: number[], branchId?: number) {
   if (orderIds.length === 0) return [];
   const db = await getDb();
   if (!db) return [];
+  if (branchId) {
+    // คนที่ผูกสาขาขอได้เฉพาะรายการของบิลในสาขาตัวเอง
+    const allowed = await db.select({ id: orders.id }).from(orders)
+      .where(and(inArray(orders.id, orderIds), eq(orders.branchId, branchId)));
+    orderIds = allowed.map((o) => o.id);
+    if (orderIds.length === 0) return [];
+  }
   return db.select({
     orderId: orderItems.orderId,
     itemName: orderItems.itemName,

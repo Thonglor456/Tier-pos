@@ -65,6 +65,8 @@ export default function ReportsScreen() {
   const [filterBranch, setFilterBranch] = useState<number | "all">(() =>
     isBranchLocked && currentStaff?.branchId ? currentStaff.branchId : "all"
   );
+  // ยกเลิกบิลย้อนหลังได้เฉพาะผู้จัดการ (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
+  const canCancel = currentStaff?.role === "manager" || currentStaff?.role === "admin";
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const utils = trpc.useUtils();
@@ -72,7 +74,7 @@ export default function ReportsScreen() {
   const endDateStr = useMemo(() => endOfDay(dateRange.to ?? dateRange.from ?? today).toISOString(), [dateRange.to, dateRange.from, today]);
   const summaryDate = useMemo(() => (dateRange.from ?? today).toISOString().slice(0, 10), [dateRange.from, today]);
 
-  const { data: summary } = trpc.orders.dailySummary.useQuery({ date: summaryDate });
+  const { data: summary } = trpc.orders.dailySummary.useQuery({ date: summaryDate, branchId: filterBranch !== "all" ? filterBranch : undefined });
   const { data: channels = [] } = trpc.channels.list.useQuery();
   const { data: branches = [] } = trpc.branches.list.useQuery();
   const { data: staffList = [] } = trpc.posUsers.list.useQuery();
@@ -379,7 +381,7 @@ export default function ReportsScreen() {
               className="ml-2 text-xs px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="all">📍 ทุกสาขา</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>📍 {b.name}</option>)}
+              {branches.filter((b) => b.type === "shop").map((b) => <option key={b.id} value={b.id}>📍 {b.name}</option>)}
             </select>
           )}
 
@@ -633,7 +635,7 @@ export default function ReportsScreen() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        {order.status === "completed" && (
+                        {order.status === "completed" && canCancel && (
                           <button
                             onClick={() => handleCancelClick(order.id)}
                             className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-2 py-1 rounded-lg transition-colors"

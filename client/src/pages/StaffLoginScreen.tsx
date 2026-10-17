@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { setStaffToken } from "@/lib/staffToken";
 import { useStaff } from "@/contexts/StaffContext";
 import { toast } from "sonner";
 import { Delete, MapPin } from "lucide-react";
@@ -15,7 +16,7 @@ export default function StaffLoginScreen() {
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const { data: staffList = [] } = trpc.posUsers.list.useQuery();
+  const { data: staffList = [] } = trpc.posUsers.loginList.useQuery();
   const verifyMutation = trpc.posUsers.verifyStaffPin.useMutation();
 
   const selectedStaff = staffList.find((s) => s.id === selectedStaffId);
@@ -40,6 +41,7 @@ export default function StaffLoginScreen() {
     try {
       const result = await verifyMutation.mutateAsync({ staffId: selectedStaffId, pin });
       if (result) {
+        setStaffToken(result.token);
         const staffData = { id: result.id, name: result.name, role: result.role as "admin" | "manager" | "staff", branchId: result.branchId ?? null };
         if (result.branchId) {
           // Staff assigned to a specific branch — auto-set and enter
@@ -47,7 +49,7 @@ export default function StaffLoginScreen() {
           if (assignedBranch) setCurrentBranch({ id: assignedBranch.id, name: assignedBranch.name });
           setCurrentStaff(staffData);
           toast.success(`ยินดีต้อนรับ ${result.name}`);
-        } else if (allBranches.filter((b) => b.isActive).length > 0) {
+        } else if (allBranches.filter((b) => b.isActive && b.type === "shop").length > 0) {
           // No fixed branch + branches exist → ask which branch
           setPendingStaff(staffData);
         } else {
@@ -59,8 +61,8 @@ export default function StaffLoginScreen() {
         setError("PIN ไม่ถูกต้อง กรุณาลองใหม่");
         setPin("");
       }
-    } catch {
-      setError("PIN ไม่ถูกต้อง กรุณาลองใหม่");
+    } catch (e) {
+      setError(e instanceof Error && e.message.includes("รอ") ? e.message : "PIN ไม่ถูกต้อง กรุณาลองใหม่");
       setPin("");
     } finally {
       setIsVerifying(false);
@@ -105,7 +107,7 @@ export default function StaffLoginScreen() {
               <p className="text-sm text-muted-foreground mt-1">{pendingStaff.name} · กรุณาเลือกสาขาที่ปฏิบัติงาน</p>
             </div>
             <div className="space-y-2">
-              {allBranches.filter((b) => b.isActive).map((branch) => (
+              {allBranches.filter((b) => b.isActive && b.type === "shop").map((branch) => (
                 <button
                   key={branch.id}
                   onClick={() => handleSelectBranch({ id: branch.id, name: branch.name })}

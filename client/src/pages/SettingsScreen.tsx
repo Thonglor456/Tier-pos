@@ -116,16 +116,20 @@ function BranchesSection() {
     onSuccess: () => { toast.success("ลบสาขาแล้ว"); refetch(); },
   });
   const [showForm, setShowForm] = useState(false);
-  const [editBranch, setEditBranch] = useState<{ id?: number; name: string; address: string; phone: string; isActive: boolean } | null>(null);
+  type BranchForm = { id?: number; name: string; address: string; phone: string; isActive: boolean; type: "shop" | "warehouse"; usesCentralStock: boolean };
+  const [editBranch, setEditBranch] = useState<BranchForm | null>(null);
 
-  const openAdd = () => { setEditBranch({ name: "", address: "", phone: "", isActive: true }); setShowForm(true); };
-  const openEdit = (b: { id: number; name: string; address: string | null; phone: string | null; isActive: boolean }) => {
-    setEditBranch({ id: b.id, name: b.name, address: b.address ?? "", phone: b.phone ?? "", isActive: b.isActive });
+  const openAdd = () => { setEditBranch({ name: "", address: "", phone: "", isActive: true, type: "shop", usesCentralStock: true }); setShowForm(true); };
+  const openEdit = (b: { id: number; name: string; address: string | null; phone: string | null; isActive: boolean; type: "shop" | "warehouse"; usesCentralStock: boolean }) => {
+    setEditBranch({ id: b.id, name: b.name, address: b.address ?? "", phone: b.phone ?? "", isActive: b.isActive, type: b.type, usesCentralStock: b.usesCentralStock });
     setShowForm(true);
   };
   const handleSave = () => {
     if (!editBranch || !editBranch.name.trim()) return;
-    upsertMutation.mutate({ id: editBranch.id, name: editBranch.name, address: editBranch.address, phone: editBranch.phone, isActive: editBranch.isActive });
+    upsertMutation.mutate({
+      id: editBranch.id, name: editBranch.name, address: editBranch.address, phone: editBranch.phone, isActive: editBranch.isActive,
+      type: editBranch.type, usesCentralStock: editBranch.type === "shop" && editBranch.usesCentralStock,
+    });
   };
   const handleSelectBranch = (b: { id: number; name: string }) => {
     branchCtx?.setCurrentBranch({ id: b.id, name: b.name });
@@ -156,6 +160,8 @@ function BranchesSection() {
                   <p className="font-semibold text-foreground">{branch.name}</p>
                   {isSelected && <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">ใช้งานอยู่</span>}
                   {!branch.isActive && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">ปิดใช้งาน</span>}
+                  {branch.type === "warehouse" && <span className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">คลังกลาง</span>}
+                  {branch.type === "shop" && !branch.usesCentralStock && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">สั่งของเอง</span>}
                 </div>
                 {branch.address && <p className="text-sm text-muted-foreground truncate">{branch.address}</p>}
                 {branch.phone && <p className="text-sm text-muted-foreground">{branch.phone}</p>}
@@ -187,6 +193,23 @@ function BranchesSection() {
               <div><Label>ชื่อสาขา *</Label><Input value={editBranch.name} onChange={(e) => setEditBranch({ ...editBranch, name: e.target.value })} placeholder="เช่น สาขาหลัก, สาขาสยาม" className="mt-1" /></div>
               <div><Label>ที่อยู่</Label><Input value={editBranch.address} onChange={(e) => setEditBranch({ ...editBranch, address: e.target.value })} placeholder="ที่อยู่สาขา" className="mt-1" /></div>
               <div><Label>เบอร์โทร</Label><Input value={editBranch.phone} onChange={(e) => setEditBranch({ ...editBranch, phone: e.target.value })} placeholder="เบอร์โทรสาขา" className="mt-1" /></div>
+              <div>
+                <Label>ประเภท</Label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {([["shop", "ร้าน (มีหน้าขาย)"], ["warehouse", "คลังกลาง (เก็บของ)"]] as const).map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setEditBranch({ ...editBranch, type: v })}
+                      className={cn("px-3 py-2 rounded-lg border text-sm", editBranch.type === v ? "bg-primary text-white border-primary" : "border-border hover:bg-muted")}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {editBranch.type === "shop" && (
+                <div className="flex items-start gap-3">
+                  <Switch id="uses-central" checked={editBranch.usesCentralStock} onCheckedChange={(v) => setEditBranch({ ...editBranch, usesCentralStock: v })} />
+                  <div><Label htmlFor="uses-central">เบิกของจากคลังกลาง</Label><p className="text-xs text-muted-foreground">ปิดไว้ถ้าสาขานี้สั่งของเองทั้งหมด</p></div>
+                </div>
+              )}
               <div className="flex items-center gap-3"><Switch checked={editBranch.isActive} onCheckedChange={(v) => setEditBranch({ ...editBranch, isActive: v })} /><Label>เปิดใช้งาน</Label></div>
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => { setShowForm(false); setEditBranch(null); }} className="flex-1">ยกเลิก</Button>
@@ -367,12 +390,13 @@ function ChannelsSection() {
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editSlug, setEditSlug] = useState("");
+  const [editGp, setEditGp] = useState("0");
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
 
   const handleSaveEdit = (ch: typeof channels[0]) => {
-    upsertMutation.mutate({ id: ch.id, name: editName, slug: editSlug, isActive: ch.isActive, sortOrder: ch.sortOrder });
+    upsertMutation.mutate({ id: ch.id, name: editName, slug: editSlug, isActive: ch.isActive, sortOrder: ch.sortOrder, gpPercent: parseFloat(editGp) || 0 });
     setEditId(null);
   };
 
@@ -395,9 +419,13 @@ function ChannelsSection() {
           <div key={ch.id} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
             {editId === ch.id ? (
               <>
-                <div className="flex-1 grid grid-cols-2 gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-2">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="ชื่อ" className="border-border" />
                   <Input value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="slug (ภาษาอังกฤษ)" className="border-border" />
+                  <div className="relative">
+                    <Input type="number" min="0" max="100" step="0.01" value={editGp} onChange={(e) => setEditGp(e.target.value)} placeholder="GP" className="border-border pr-7" title="ค่า GP ที่แอปหัก (%)" />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                  </div>
                 </div>
                 <button onClick={() => handleSaveEdit(ch)} className="text-green-600 hover:text-green-700"><Check className="w-5 h-5" /></button>
                 <button onClick={() => setEditId(null)} className="text-muted-foreground hover:text-primary"><X className="w-5 h-5" /></button>
@@ -406,10 +434,10 @@ function ChannelsSection() {
               <>
                 <div className="flex-1">
                   <p className="font-medium text-foreground">{ch.name}</p>
-                  <p className="text-xs text-muted-foreground">slug: {ch.slug}</p>
+                  <p className="text-xs text-muted-foreground">slug: {ch.slug}{parseFloat(String(ch.gpPercent)) > 0 && ` · GP ${parseFloat(String(ch.gpPercent))}%`}</p>
                 </div>
-                <Switch checked={ch.isActive} onCheckedChange={(v) => upsertMutation.mutate({ ...ch, isActive: v })} className="data-[state=checked]:bg-primary" />
-                <button onClick={() => { setEditId(ch.id); setEditName(ch.name); setEditSlug(ch.slug); }} className="text-muted-foreground hover:text-primary"><Edit2 className="w-4 h-4" /></button>
+                <Switch checked={ch.isActive} onCheckedChange={(v) => upsertMutation.mutate({ id: ch.id, name: ch.name, slug: ch.slug, sortOrder: ch.sortOrder, isActive: v })} className="data-[state=checked]:bg-primary" />
+                <button onClick={() => { setEditId(ch.id); setEditName(ch.name); setEditSlug(ch.slug); setEditGp(String(parseFloat(String(ch.gpPercent)) || 0)); }} className="text-muted-foreground hover:text-primary"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => deleteMutation.mutate({ id: ch.id })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
               </>
             )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard, ChevronDown, Tag } from "lucide-react";
+import { BarChart2, Settings, ShoppingCart, LogOut, MapPin, LayoutDashboard, ChevronDown, Tag, Boxes, Calculator } from "lucide-react";
 import { useStaff } from "@/contexts/StaffContext";
 import { useBranch } from "@/contexts/BranchContext";
 import { trpc } from "@/lib/trpc";
@@ -38,6 +38,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
   const { currentStaff, logout } = useStaff();
   const { currentBranch, setCurrentBranch } = useBranch();
   const isAdmin = currentStaff?.role === "admin";
+  const isManager = currentStaff?.role === "manager" || isAdmin;
   const { data: allBranches = [] } = trpc.branches.list.useQuery(undefined, { enabled: isAdmin });
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const desktopDropdownRef = useRef<HTMLDivElement>(null);
@@ -76,7 +77,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
                 </button>
                 {branchDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[140px]">
-                    {allBranches.filter((b) => b.isActive).map((b) => (
+                    {allBranches.filter((b) => b.isActive && b.type === "shop").map((b) => (
                       <button
                         key={b.id}
                         onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
@@ -85,7 +86,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
                         {b.name}
                       </button>
                     ))}
-                    {allBranches.filter((b) => b.isActive).length === 0 && (
+                    {allBranches.filter((b) => b.isActive && b.type === "shop").length === 0 && (
                       <p className="px-3 py-2 text-xs text-muted-foreground">ยังไม่มีสาขา</p>
                     )}
                   </div>
@@ -121,7 +122,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
           {/* Mobile branch dropdown */}
           {isAdmin && branchDropdownOpen && (
             <div className="absolute top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[160px]">
-              {allBranches.filter((b) => b.isActive).map((b) => (
+              {allBranches.filter((b) => b.isActive && b.type === "shop").map((b) => (
                 <button
                   key={b.id}
                   onClick={() => { setCurrentBranch({ id: b.id, name: b.name }); setBranchDropdownOpen(false); }}
@@ -130,7 +131,7 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
                   {b.name}
                 </button>
               ))}
-              {allBranches.filter((b) => b.isActive).length === 0 && (
+              {allBranches.filter((b) => b.isActive && b.type === "shop").length === 0 && (
                 <p className="px-3 py-2 text-xs text-muted-foreground">ยังไม่มีสาขา</p>
               )}
             </div>
@@ -157,6 +158,18 @@ export default function POSHeader({ channelSlug, channels, onChannelChange, cart
               <BarChart2 className="w-4 h-4" />
             </button>
           </Link>
+          <Link href="/stock">
+            <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="สต็อก">
+              <Boxes className="w-4 h-4" />
+            </button>
+          </Link>
+          {isManager && (
+            <Link href="/accounting">
+              <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="บัญชี">
+                <Calculator className="w-4 h-4" />
+              </button>
+            </Link>
+          )}
           <Link href="/prices">
             <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="แก้ไขราคาสินค้า">
               <Tag className="w-4 h-4" />

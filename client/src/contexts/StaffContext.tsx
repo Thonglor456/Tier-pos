@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
+import { getStaffToken, setStaffToken } from "@/lib/staffToken";
 
 export type StaffSession = {
   id: number;
@@ -24,6 +25,8 @@ const STORAGE_KEY = "tier_current_staff";
 export function StaffProvider({ children }: { children: React.ReactNode }) {
   const [currentStaff, setCurrentStaffState] = useState<StaffSession | null>(() => {
     try {
+      // เครื่องที่ล็อกอินไว้ก่อนมี token ต้องใส่ PIN ใหม่หนึ่งครั้ง
+      if (!getStaffToken()) return null;
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch {
@@ -37,6 +40,7 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(staff));
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      setStaffToken(null);
     }
   };
 

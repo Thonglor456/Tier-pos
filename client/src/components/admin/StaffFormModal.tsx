@@ -43,7 +43,7 @@ export default function StaffFormModal({ staffId, onClose, onSaved }: Props) {
     if (!name.trim()) return toast.error("กรุณากรอกชื่อ");
     if (!staffId && (pin.length < 4 || pin.length > 6)) return toast.error("PIN ต้องมี 4-6 หลัก");
     if (pin && (pin.length < 4 || pin.length > 6)) return toast.error("PIN ต้องมี 4-6 หลัก");
-    upsert.mutate({ id: staffId, name: name.trim(), pinCode: pin || (existing?.pinCode ?? ""), role, branchId });
+    upsert.mutate({ id: staffId, name: name.trim(), pinCode: pin || undefined, role, branchId });
   }
 
   return (

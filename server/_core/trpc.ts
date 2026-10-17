@@ -27,6 +27,37 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+const STAFF_UNAUTHED_MSG = "กรุณาเข้าสู่ระบบด้วย PIN อีกครั้ง";
+
+/** Any logged-in POS staff (PIN session). */
+export const staffProcedure = t.procedure.use(
+  t.middleware(async ({ ctx, next }) => {
+    if (!ctx.staff) throw new TRPCError({ code: "UNAUTHORIZED", message: STAFF_UNAUTHED_MSG });
+    return next({ ctx: { ...ctx, staff: ctx.staff } });
+  }),
+);
+
+/** POS manager or admin. */
+export const managerProcedure = staffProcedure.use(
+  t.middleware(async ({ ctx, next }) => {
+    const role = ctx.staff?.role;
+    if (role !== "manager" && role !== "admin") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "เฉพาะผู้จัดการเท่านั้น" });
+    }
+    return next();
+  }),
+);
+
+/** POS admin (owner) — sees every branch. */
+export const posAdminProcedure = staffProcedure.use(
+  t.middleware(async ({ ctx, next }) => {
+    if (ctx.staff?.role !== "admin") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "เฉพาะผู้ดูแลระบบเท่านั้น" });
+    }
+    return next();
+  }),
+);
+
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;

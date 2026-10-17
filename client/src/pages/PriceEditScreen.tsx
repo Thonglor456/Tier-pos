@@ -24,8 +24,8 @@ export default function PriceEditScreen() {
   const [edits, setEdits] = useState<Record<number, ItemEditState>>({});
   const [saving, setSaving] = useState<Record<number, boolean>>({});
 
-  const { data: items = [], refetch } = trpc.admin.items.useQuery();
-  const upsert = trpc.admin.upsertItem.useMutation({
+  const { data: items = [], refetch } = trpc.menu.items.useQuery();
+  const updatePrices = trpc.menu.updatePrices.useMutation({
     onError: (e) => toast.error(e.message),
   });
 
@@ -81,20 +81,11 @@ export default function PriceEditScreen() {
     const state = getEditState(item);
     setSaving((p) => ({ ...p, [item.id]: true }));
     try {
-      await upsert.mutateAsync({
-        id: item.id,
-        categoryId: item.categoryId,
-        name: item.name,
-        sku: item.sku ?? undefined,
-        costPrice: parseFloat(String(item.costPrice)),
-        hasVariants: item.hasVariants,
+      await updatePrices.mutateAsync({
+        itemId: item.id,
         cupsPerServing: state.cupsPerServing,
-        isActive: item.isActive,
-        sortOrder: item.sortOrder,
-        modifierGroupIds: item.modifierGroupIds,
         variants: state.variants.map((v) => ({
           id: v.id,
-          name: v.name,
           priceWalkin: v.priceWalkin,
           priceGrab: v.priceGrab,
           priceLineman: v.priceLineman,

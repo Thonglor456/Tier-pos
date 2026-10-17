@@ -239,7 +239,7 @@ export default function AdminScreen() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">{staff.name}</p>
-                      <p className="text-xs text-muted-foreground">PIN: {"•".repeat(staff.pinCode?.length ?? 4)}</p>
+                      <p className="text-xs text-muted-foreground">PIN: ••••</p>
                     </div>
                     <Badge variant={staff.role === "admin" ? "default" : staff.role === "manager" ? "default" : "secondary"} className="text-xs">
                       {staff.role === "admin" ? "แอดมิน" : staff.role === "manager" ? "ผู้จัดการ" : "พนักงาน"}

@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { getStaffToken, setStaffToken } from "./lib/staffToken";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -13,6 +14,14 @@ const queryClient = new QueryClient();
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
+
+  // PIN session หมดอายุหรือบัญชีถูกปิด: กลับไปหน้าใส่ PIN
+  if (error.data?.code === "UNAUTHORIZED" && error.message !== UNAUTHED_ERR_MSG && getStaffToken()) {
+    setStaffToken(null);
+    localStorage.removeItem("tier_current_staff");
+    window.location.reload();
+    return;
+  }
 
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
 
@@ -43,6 +52,8 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
+        const staffToken = getStaffToken();
+        const staffHeader: Record<string, string> = staffToken ? { "x-staff-token": staffToken } : {};
         // Preview auto-login fallback: when the browser blocks iframe cookies
         // (Safari ITP / private browsing / WebView), the runtime mirrors the
         // session into sessionStorage so we can forward it as a Bearer token.
@@ -54,13 +65,13 @@ const trpcClient = trpc.createClient({
             const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
             const token = pair?.trim().slice(prefix.length);
             if (token) {
-              return { Authorization: `Bearer ${token}` };
+              return { ...staffHeader, Authorization: `Bearer ${token}` };
             }
           }
         } catch {
           // sessionStorage unavailable
         }
-        return {};
+        return staffHeader;
       },
       fetch(input, init) {
         return globalThis.fetch(input, {
