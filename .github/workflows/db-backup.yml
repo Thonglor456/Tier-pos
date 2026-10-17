@@ -1,0 +1,105 @@
+name: Database Backup
+
+on:
+  schedule:
+    # 20:00 UTC = 03:00 เวลาไทย ทุกวัน
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  # ให้ตรงกับเวอร์ชัน MySQL บน Railway (Settings → Source Image)
+  MYSQL_IMAGE: mysql:9.4
+
+jobs:
+  backup:
+    name: Dump, encrypt and upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check secrets
+        env:
+          MYSQL_PUBLIC_URL: ${{ secrets.MYSQL_PUBLIC_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$MYSQL_PUBLIC_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::ต้องตั้ง secrets MYSQL_PUBLIC_URL และ BACKUP_PASSPHRASE ก่อน (ดู docs/DB_BACKUP.md)"
+            exit 1
+          fi
+
+      - name: Write MySQL client config
+        env:
+          MYSQL_PUBLIC_URL: ${{ secrets.MYSQL_PUBLIC_URL }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/backup"
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse, unquote
+
+          u = urlparse(os.environ["MYSQL_PUBLIC_URL"])
+          host, port = u.hostname, str(u.port or 3306)
+          user, password = unquote(u.username or ""), unquote(u.password or "")
+          database = u.path.lstrip("/")
+
+          # repo นี้เป็น public: ซ่อนค่าที่แยกออกมาจาก secret ไม่ให้โผล่ใน log
+          for value in (host, user, password):
+              if value:
+                  print(f"::add-mask::{value}")
+
+          tmp = os.path.join(os.environ["RUNNER_TEMP"], "backup")
+          cnf = os.path.join(tmp, "my.cnf")
+          with open(cnf, "w") as f:
+              f.write(f'[client]\nhost="{host}"\nport={port}\nuser="{user}"\npassword="{password}"\n')
+          os.chmod(cnf, 0o644)
+
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"DB_NAME={database}\n")
+          PY
+
+      - name: Dump database
+        run: |
+          STAMP=$(TZ=Asia/Bangkok date +%Y-%m-%d_%H%M)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          docker run --rm \
+            -v "$RUNNER_TEMP/backup/my.cnf:/etc/backup.cnf:ro" \
+            "$MYSQL_IMAGE" \
+            mysqldump --defaults-extra-file=/etc/backup.cnf \
+              --single-transaction --quick \
+              --routines --triggers --events \
+              --no-tablespaces --set-gtid-purged=OFF \
+              "$DB_NAME" > "$RUNNER_TEMP/backup/dump.sql"
+          rm -f "$RUNNER_TEMP/backup/my.cnf"
+
+          # dump ที่สมบูรณ์จะจบด้วยบรรทัดนี้เสมอ
+          tail -n 1 "$RUNNER_TEMP/backup/dump.sql" | grep -q "Dump completed" || {
+            echo "::error::mysqldump ไม่สมบูรณ์"
+            exit 1
+          }
+          echo "Dump size: $(du -h "$RUNNER_TEMP/backup/dump.sql" | cut -f1)"
+          echo "Tables: $(grep -c '^CREATE TABLE' "$RUNNER_TEMP/backup/dump.sql")"
+
+      - name: Compress and encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          cd "$RUNNER_TEMP/backup"
+          gzip -9 dump.sql
+          printf '%s' "$BACKUP_PASSPHRASE" > pass.txt
+          gpg --batch --yes --pinentry-mode loopback --passphrase-file pass.txt \
+            --symmetric --cipher-algo AES256 \
+            --output "tier-pos-db-$STAMP.sql.gz.gpg" dump.sql.gz
+          rm -f pass.txt dump.sql.gz
+
+      - name: Upload backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-pos-db-${{ env.STAMP }}
+          path: ${{ runner.temp }}/backup/tier-pos-db-${{ env.STAMP }}.sql.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
