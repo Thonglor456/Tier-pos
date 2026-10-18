@@ -62,7 +62,7 @@ export default function StaffLoginScreen() {
         setPin("");
       }
     } catch (e) {
-      setError(e instanceof Error && e.message.includes("รอ") ? e.message : "PIN ไม่ถูกต้อง กรุณาลองใหม่");
+      setError(e instanceof Error ? `เข้าสู่ระบบไม่สำเร็จ: ${e.message}` : "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
       setPin("");
     } finally {
       setIsVerifying(false);

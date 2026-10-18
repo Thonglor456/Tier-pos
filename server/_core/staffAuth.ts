@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { ENV } from "./env";
 
@@ -15,8 +16,10 @@ export type StaffSession = {
 };
 
 function getSecret() {
-  if (!ENV.cookieSecret) throw new Error("JWT_SECRET is not configured");
-  return new TextEncoder().encode(ENV.cookieSecret);
+  // ไม่มี JWT_SECRET บน Railway: ใช้ค่าที่ได้จาก DATABASE_URL แทน (คงที่และเป็นความลับ)
+  const secret = ENV.cookieSecret || (ENV.databaseUrl && createHash("sha256").update(`staff:${ENV.databaseUrl}`).digest("hex"));
+  if (!secret) throw new Error("JWT_SECRET is not configured");
+  return new TextEncoder().encode(secret);
 }
 
 export async function signStaffToken(staffId: number): Promise<string> {
