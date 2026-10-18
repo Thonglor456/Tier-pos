@@ -39,7 +39,6 @@ import {
   getOrderWithItems,
   getOrders,
   getOrderQuantitySummary,
-  getPosUserRole,
   getPosUsers,
   getSalesChannels,
   getStoreSettings,
@@ -255,7 +254,7 @@ export const appRouter = router({
     // หน้าเข้าสู่ระบบ: ชื่อและสิทธิ์เท่านั้น ไม่มี PIN
     loginList: publicProcedure.query(() => getLoginPosUsers()),
     list: staffProcedure.query(() => getPosUsers()),
-    upsert: managerProcedure
+    upsert: staffProcedure
       .input(z.object({
         id: z.number().optional(),
         name: z.string().min(1),
@@ -263,25 +262,10 @@ export const appRouter = router({
         role: z.enum(["staff", "manager", "admin"]),
         branchId: z.number().optional().nullable(),
       }))
-      .mutation(async ({ input, ctx }) => {
-        // ผู้จัดการตั้งหรือแก้บัญชีแอดมินไม่ได้ (กันการยกสิทธิ์ตัวเอง)
-        if (ctx.staff.role !== "admin") {
-          const currentRole = input.id ? await getPosUserRole(input.id) : null;
-          if (input.role === "admin" || currentRole === "admin") {
-            throw new TRPCError({ code: "FORBIDDEN", message: "เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการบัญชีแอดมินได้" });
-          }
-        }
-        return upsertPosUser({ ...input, pinCode: input.pinCode || undefined });
-      }),
-    delete: managerProcedure
+      .mutation(({ input }) => upsertPosUser({ ...input, pinCode: input.pinCode || undefined })),
+    delete: staffProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input, ctx }) => {
-        if (input.id === ctx.staff.id) throw new Error("ลบบัญชีของตัวเองไม่ได้");
-        if (ctx.staff.role !== "admin" && (await getPosUserRole(input.id)) === "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "เฉพาะผู้ดูแลระบบเท่านั้นที่ลบบัญชีแอดมินได้" });
-        }
-        return deletePosUser(input.id);
-      }),
+      .mutation(({ input }) => deletePosUser(input.id)),
     verifyPin: staffProcedure
       .input(z.object({ pin: z.string() }))
       .mutation(async ({ input, ctx }) => {
@@ -316,9 +300,9 @@ export const appRouter = router({
 
   // ─── Admin ───────────────────────────────────────────────────────────────────
   admin: router({
-    items: managerProcedure.query(() => getAllItemsAdmin()),
-    categories: managerProcedure.query(() => getAllCategoriesAdmin()),
-    upsertItem: managerProcedure
+    items: staffProcedure.query(() => getAllItemsAdmin()),
+    categories: staffProcedure.query(() => getAllCategoriesAdmin()),
+    upsertItem: staffProcedure
       .input(z.object({
         id: z.number().optional(),
         categoryId: z.number(),
@@ -333,23 +317,23 @@ export const appRouter = router({
         modifierGroupIds: z.array(z.number()),
       }))
       .mutation(({ input }) => upsertItem(input)),
-    toggleItem: managerProcedure
+    toggleItem: staffProcedure
       .input(z.object({ itemId: z.number(), isActive: z.boolean() }))
       .mutation(({ input }) => toggleItemActive(input.itemId, input.isActive)),
-    upsertCategory: managerProcedure
+    upsertCategory: staffProcedure
       .input(z.object({ id: z.number().optional(), name: z.string(), sortOrder: z.number(), isActive: z.boolean() }))
       .mutation(({ input }) => upsertCategory(input)),
-    modifierGroups: managerProcedure.query(() => getModifierGroupsWithOptions()),
-    upsertModifierGroup: managerProcedure
+    modifierGroups: staffProcedure.query(() => getModifierGroupsWithOptions()),
+    upsertModifierGroup: staffProcedure
       .input(z.object({ id: z.number().optional(), name: z.string(), isRequired: z.boolean(), minSelect: z.number(), maxSelect: z.number(), sortOrder: z.number() }))
       .mutation(({ input }) => upsertModifierGroup(input)),
-    deleteModifierGroup: managerProcedure
+    deleteModifierGroup: staffProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteModifierGroup(input.id)),
-    upsertModifierOption: managerProcedure
+    upsertModifierOption: staffProcedure
       .input(z.object({ id: z.number().optional(), modifierGroupId: z.number(), name: z.string(), priceAdd: z.number(), sortOrder: z.number(), isActive: z.boolean() }))
       .mutation(({ input }) => upsertModifierOption(input)),
-    deleteModifierOption: managerProcedure
+    deleteModifierOption: staffProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteModifierOption(input.id)),
   }),
@@ -357,7 +341,7 @@ export const appRouter = router({
   // ─── Settings ────────────────────────────────────────────────────────────────
   settings: router({
     get: staffProcedure.query(() => getStoreSettings()),
-    update: managerProcedure
+    update: staffProcedure
       .input(z.object({
         shopName: z.string().optional(),
         logoUrl: z.string().nullable().optional(),
@@ -376,11 +360,11 @@ export const appRouter = router({
   // ─── Sales Channels ──────────────────────────────────────────────────────────
   channels: router({
     list: staffProcedure.query(() => getSalesChannels()),
-    listAll: managerProcedure.query(() => getAllSalesChannels()),
-    upsert: managerProcedure
+    listAll: staffProcedure.query(() => getAllSalesChannels()),
+    upsert: staffProcedure
       .input(z.object({ id: z.number().optional(), name: z.string(), slug: z.string(), isActive: z.boolean(), sortOrder: z.number(), gpPercent: z.number().min(0).max(100).optional() }))
       .mutation(({ input }) => upsertSalesChannel(input)),
-    delete: managerProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteSalesChannel(input.id)),
   }),
@@ -388,7 +372,7 @@ export const appRouter = router({
   branches: router({
     // หน้าเข้าสู่ระบบต้องใช้ชื่อสาขา
     list: publicProcedure.query(() => getBranches()),
-    upsert: managerProcedure
+    upsert: staffProcedure
       .input(z.object({
         id: z.number().optional(),
         name: z.string().min(1),
@@ -399,35 +383,35 @@ export const appRouter = router({
         usesCentralStock: z.boolean().optional(),
       }))
       .mutation(({ input }) => upsertBranch(input)),
-    delete: posAdminProcedure
+    delete: staffProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteBranch(input.id)),
   }),
   // ─── Dashboard ───────────────────────────────────────────────────────────────
   dashboard: router({
-    todaySummary: managerProcedure
+    todaySummary: staffProcedure
       .input(z.object({ branchId: z.number().optional() }).optional())
       .query(({ input, ctx }) => getDashboardTodaySummary(scopeBranch(ctx.staff, input?.branchId))),
-    topItems: posAdminProcedure
+    topItems: staffProcedure
       .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional() }))
       .query(({ input }) => getDashboardTopItems(input.period, input.limit)),
-    topItemsWithVariant: managerProcedure
+    topItemsWithVariant: staffProcedure
       .input(z.object({ period: z.enum(["day", "month"]), limit: z.number().optional(), branchId: z.number().optional() }))
       .query(({ input, ctx }) => getDashboardTopItemsWithVariant(input.period, input.limit, scopeBranch(ctx.staff, input.branchId))),
-    weeklyRevenue: managerProcedure
+    weeklyRevenue: staffProcedure
       .input(z.object({ branchId: z.number().optional() }).optional())
       .query(({ input, ctx }) => getDashboardWeeklyRevenue(scopeBranch(ctx.staff, input?.branchId))),
-    monthlyRevenue: managerProcedure
+    monthlyRevenue: staffProcedure
       .input(z.object({ branchId: z.number().optional() }).optional())
       .query(({ input, ctx }) => getDashboardMonthlyRevenue(scopeBranch(ctx.staff, input?.branchId))),
-    hourlyRevenue: managerProcedure
+    hourlyRevenue: staffProcedure
       .input(z.object({ branchId: z.number().optional() }).optional())
       .query(({ input, ctx }) => getDashboardHourlyRevenue(scopeBranch(ctx.staff, input?.branchId))),
-    monthComparison: managerProcedure
+    monthComparison: staffProcedure
       .input(z.object({ branchId: z.number().optional() }).optional())
       .query(({ input, ctx }) => getDashboardMonthComparison(scopeBranch(ctx.staff, input?.branchId))),
-    branchComparison: posAdminProcedure.query(() => getDashboardBranchComparison()),
-    recentOrders: managerProcedure
+    branchComparison: staffProcedure.query(() => getDashboardBranchComparison()),
+    recentOrders: staffProcedure
       .input(z.object({ limit: z.number().optional(), branchId: z.number().optional() }))
       .query(({ input, ctx }) => getDashboardRecentOrders(input.limit, scopeBranch(ctx.staff, input.branchId))),
   }),

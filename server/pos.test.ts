@@ -203,10 +203,12 @@ describe("server-side permissions", () => {
     expect(db.getOrders).toHaveBeenLastCalledWith(expect.objectContaining({ branchId: 2 }));
   });
 
-  it("stops managers from creating or editing admin accounts", async () => {
-    const caller = appRouter.createCaller(createCtx(MANAGER));
-    await expect(caller.posUsers.upsert({ name: "x", pinCode: "1111", role: "admin" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.posUsers.upsert({ id: 99, name: "x", role: "staff" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  it("lets any logged-in staff manage staff accounts and the menu", async () => {
+    const caller = appRouter.createCaller(createCtx(STAFF));
+    await caller.posUsers.upsert({ id: 99, name: "x", role: "staff" });
+    expect(db.upsertPosUser).toHaveBeenCalled();
+    await caller.admin.toggleItem({ itemId: 1, isActive: false });
+    expect(db.toggleItemActive).toHaveBeenCalled();
   });
 
   it("returns a session token on correct login PIN and locks after 5 wrong tries", async () => {
