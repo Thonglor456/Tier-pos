@@ -65,8 +65,6 @@ export default function ReportsScreen() {
   const [filterBranch, setFilterBranch] = useState<number | "all">(() =>
     isBranchLocked && currentStaff?.branchId ? currentStaff.branchId : "all"
   );
-  // ยกเลิกบิลย้อนหลังได้เฉพาะผู้จัดการ (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
-  const canCancel = currentStaff?.role === "manager" || currentStaff?.role === "admin";
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const utils = trpc.useUtils();
@@ -635,7 +633,7 @@ export default function ReportsScreen() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        {order.status === "completed" && canCancel && (
+                        {order.status === "completed" && (
                           <button
                             onClick={() => handleCancelClick(order.id)}
                             className="text-xs text-red-500 hover:text-red-400 hover:bg-red-900/20 px-2 py-1 rounded-lg transition-colors"

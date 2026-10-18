@@ -165,9 +165,10 @@ describe("server-side permissions", () => {
     await expect(caller.posUsers.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("does not let staff cancel bills from reports without a manager", async () => {
+  it("lets staff cancel their own branch's bills and records their name", async () => {
     const caller = appRouter.createCaller(createCtx(STAFF));
-    await expect(caller.orders.cancelDirect({ orderId: 1, cancelReason: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await caller.orders.cancelDirect({ orderId: 1, cancelReason: "ลูกค้ายกเลิก" });
+    expect(db.cancelOrder).toHaveBeenLastCalledWith(1, "พนักงาน", "ลูกค้ายกเลิก");
   });
 
   it("records the logged-in manager's name on direct cancel", async () => {

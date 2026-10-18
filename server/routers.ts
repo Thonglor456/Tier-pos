@@ -183,8 +183,8 @@ export const appRouter = router({
         await cancelOrder(input.orderId, manager.name, input.cancelReason);
         return { success: true };
       }),
-    // ยกเลิกจากหน้ารายงาน: เฉพาะผู้จัดการที่ล็อกอินอยู่ และบันทึกชื่อจริงของผู้ยกเลิก
-    cancelDirect: managerProcedure
+    // ยกเลิกจากหน้ารายงาน: พนักงานทุกคนยกเลิกบิลสาขาตัวเองได้ และบันทึกชื่อจริงของผู้ยกเลิก
+    cancelDirect: staffProcedure
       .input(z.object({ orderId: z.number(), cancelReason: z.string().min(1) }))
       .mutation(async ({ input, ctx }) => {
         assertOrderVisible(ctx.staff, await getOrderWithItems(input.orderId));
